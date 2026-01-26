@@ -27,3 +27,4 @@ Thumbs.db
 # Temporários
 tmp/
 temp/
+backend/*.db-*
