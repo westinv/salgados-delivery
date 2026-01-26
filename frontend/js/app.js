@@ -336,13 +336,17 @@ function renderItensSelecionados() {
       <div class="flex items-center gap-3 bg-orange-50 border-2 border-orange-300 rounded-xl p-3">
         <div class="flex-1">
           <p class="font-medium text-gray-800">${item.nome}</p>
-          <p class="text-xs text-gray-500">Disponível: ${item.maxQtd}</p>
+          <p class="text-xs text-gray-500">Máx: ${item.maxQtd}</p>
         </div>
-        <div class="flex items-center gap-2">
-          <button type="button" onclick="diminuirQtd(${index})" class="w-10 h-10 bg-orange-200 text-orange-700 rounded-full text-xl font-bold hover:bg-orange-300 active:bg-orange-400 btn-touch">−</button>
-          <span class="w-12 text-center text-xl font-bold text-gray-800">${item.quantidade}</span>
-          <button type="button" onclick="aumentarQtd(${index})" class="w-10 h-10 bg-orange-200 text-orange-700 rounded-full text-xl font-bold hover:bg-orange-300 active:bg-orange-400 btn-touch">+</button>
-        </div>
+        <input
+          type="number"
+          inputmode="numeric"
+          min="1"
+          max="${item.maxQtd}"
+          value="${item.quantidade}"
+          onchange="atualizarQtd(${index}, this.value)"
+          class="w-20 px-3 py-2 text-center text-lg font-bold border-2 border-orange-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+        />
         <button type="button" onclick="removerItemSelecionado(${index})" class="w-10 h-10 text-red-500 hover:bg-red-50 active:bg-red-100 rounded-full flex items-center justify-center btn-touch">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -373,22 +377,18 @@ window.removerItemSelecionado = function (index) {
   renderItensDisponiveis();
 };
 
-window.aumentarQtd = function (index) {
+window.atualizarQtd = function (index, valor) {
   const item = itensSelecionados[index];
-  if (item.quantidade < item.maxQtd) {
-    item.quantidade++;
-    renderItensSelecionados();
-  } else {
+  let qtd = parseInt(valor) || 1;
+
+  if (qtd < 1) qtd = 1;
+  if (qtd > item.maxQtd) {
+    qtd = item.maxQtd;
     showToast(`Máximo disponível: ${item.maxQtd}`, "warning");
   }
-};
 
-window.diminuirQtd = function (index) {
-  const item = itensSelecionados[index];
-  if (item.quantidade > 1) {
-    item.quantidade--;
-    renderItensSelecionados();
-  }
+  item.quantidade = qtd;
+  renderItensSelecionados();
 };
 
 // ==================== EMBALAGEM ====================
