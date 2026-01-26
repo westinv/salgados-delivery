@@ -43,6 +43,8 @@ let estoqueItems = [];
 let itensSelecionados = []; // Array de {id, nome, quantidade, maxQtd}
 let filtroAtual = "todos";
 let paginaAtual = "home";
+let embalagemTipo = "nenhuma"; // nenhuma, tapper, isopor
+let embalagemQtd = 1;
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", async () => {
@@ -389,6 +391,80 @@ window.diminuirQtd = function (index) {
   }
 };
 
+// ==================== EMBALAGEM ====================
+
+window.selecionarEmbalagem = function (tipo) {
+  embalagemTipo = tipo;
+  embalagemQtd = 1;
+
+  // Atualiza visual dos botões
+  document.querySelectorAll(".emb-btn").forEach((btn) => {
+    btn.classList.remove("bg-orange-500", "text-white");
+    btn.classList.add("bg-gray-100", "text-gray-600");
+  });
+  document
+    .getElementById(`emb-${tipo}`)
+    .classList.remove("bg-gray-100", "text-gray-600");
+  document
+    .getElementById(`emb-${tipo}`)
+    .classList.add("bg-orange-500", "text-white");
+
+  // Mostra/esconde detalhes
+  const detalhes = document.getElementById("embalagem-detalhes");
+  const descInput = document.getElementById("embalagem-descricao");
+
+  if (tipo === "nenhuma") {
+    detalhes.classList.add("hidden");
+    descInput.value = "";
+  } else {
+    detalhes.classList.remove("hidden");
+    descInput.placeholder =
+      tipo === "tapper"
+        ? "Qual tapper? (ex: Azul grande)"
+        : "Qual isopor? (ex: Isopor 5L)";
+  }
+
+  document.getElementById("embalagem-qtd").textContent = embalagemQtd;
+};
+
+window.ajustarQtdEmbalagem = function (delta) {
+  const novaQtd = embalagemQtd + delta;
+  if (novaQtd >= 1 && novaQtd <= 99) {
+    embalagemQtd = novaQtd;
+    document.getElementById("embalagem-qtd").textContent = embalagemQtd;
+  }
+};
+
+function getEmbalagemTexto() {
+  if (embalagemTipo === "nenhuma") return "";
+
+  const descricao = document.getElementById("embalagem-descricao").value.trim();
+  const tipoLabel = embalagemTipo === "tapper" ? "Tapper" : "Isopor";
+
+  if (descricao) {
+    return `[${embalagemQtd}x ${tipoLabel}: ${descricao}]`;
+  }
+  return `[${embalagemQtd}x ${tipoLabel}]`;
+}
+
+function resetEmbalagem() {
+  embalagemTipo = "nenhuma";
+  embalagemQtd = 1;
+  document.querySelectorAll(".emb-btn").forEach((btn) => {
+    btn.classList.remove("bg-orange-500", "text-white");
+    btn.classList.add("bg-gray-100", "text-gray-600");
+  });
+  document
+    .getElementById("emb-nenhuma")
+    .classList.remove("bg-gray-100", "text-gray-600");
+  document
+    .getElementById("emb-nenhuma")
+    .classList.add("bg-orange-500", "text-white");
+  document.getElementById("embalagem-detalhes").classList.add("hidden");
+  document.getElementById("embalagem-descricao").value = "";
+  document.getElementById("embalagem-qtd").textContent = "1";
+}
+
 // ==================== AUTH & CONFIG ====================
 
 async function checkAuthStatus() {
@@ -620,13 +696,19 @@ async function handleSubmit(e) {
     }
   }
 
-  // Monta descrição com itens
+  // Monta descrição com itens e embalagem
   let descricaoCompleta = descricao;
   if (itensSelecionados.length > 0) {
     const itensTexto = itensSelecionados
       .map((i) => `${i.quantidade}x ${i.nome}`)
       .join(", ");
     descricaoCompleta = `${itensTexto} - ${descricao}`;
+  }
+
+  // Adiciona embalagem se selecionada
+  const embalagemTexto = getEmbalagemTexto();
+  if (embalagemTexto) {
+    descricaoCompleta = `${descricaoCompleta} ${embalagemTexto}`;
   }
 
   setLoading(true);
@@ -660,6 +742,7 @@ async function handleSubmit(e) {
       elements.data.value = new Date().toISOString().split("T")[0];
       elements.horario.value = "";
       itensSelecionados = [];
+      resetEmbalagem();
 
       if (result.alexa?.configured) {
         showToast("Entrega agendada! Alexa vai te avisar.", "success");
