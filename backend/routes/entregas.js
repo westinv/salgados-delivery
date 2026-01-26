@@ -13,7 +13,7 @@ const agendamentos = new Map();
 
 // Função para enviar anúncio via Voice Monkey
 async function enviarAnuncio(texto) {
-  const tokenData = tokens.obter();
+  const tokenData = await tokens.obter();
 
   if (!tokenData || !tokenData.access_token) {
     throw new Error("Voice Monkey não configurado");
@@ -99,8 +99,8 @@ function cancelarAgendamento(entregaId) {
 }
 
 // Ao iniciar, reagenda todas as entregas pendentes
-function reagendarEntregasPendentes() {
-  const lista = entregas.listar();
+async function reagendarEntregasPendentes() {
+  const lista = await entregas.listar();
   const agora = new Date();
 
   lista.forEach((entrega) => {
@@ -115,14 +115,12 @@ function reagendarEntregasPendentes() {
   console.log(`${agendamentos.size} entregas reagendadas`);
 }
 
-reagendarEntregasPendentes();
-
 // Verifica entregas para auto-concluir (2h após horário)
-function verificarAutoConclusao() {
-  const lista = entregas.buscarParaAutoConcluir();
+async function verificarAutoConclusao() {
+  const lista = await entregas.buscarParaAutoConcluir();
   const agora = new Date();
 
-  lista.forEach((entrega) => {
+  for (const entrega of lista) {
     const dataHoraEntrega = new Date(`${entrega.data}T${entrega.horario}:00`);
     const duasHorasDepois = new Date(
       dataHoraEntrega.getTime() + 2 * 60 * 60 * 1000,
@@ -132,20 +130,24 @@ function verificarAutoConclusao() {
       console.log(
         `Auto-marcando entrega ${entrega.id} como ATENÇÃO (passou 2h)`,
       );
-      entregas.marcarAtencao(entrega.id);
+      await entregas.marcarAtencao(entrega.id);
       cancelarAgendamento(entrega.id);
     }
-  });
+  }
 }
 
-// Executa verificação a cada 5 minutos
-setInterval(verificarAutoConclusao, 5 * 60 * 1000);
-verificarAutoConclusao(); // Executa imediatamente ao iniciar
+// Função de inicialização (será chamada após o banco estar pronto)
+async function inicializarAgendamentos() {
+  await reagendarEntregasPendentes();
+  await verificarAutoConclusao();
+  // Executa verificação a cada 5 minutos
+  setInterval(verificarAutoConclusao, 5 * 60 * 1000);
+}
 
 // GET /api/entregas - Lista todas as entregas
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const lista = entregas.listar();
+    const lista = await entregas.listar();
     res.json(lista);
   } catch (error) {
     console.error("Erro ao listar entregas:", error);
@@ -154,9 +156,9 @@ router.get("/", (req, res) => {
 });
 
 // GET /api/entregas/:id - Busca entrega por ID
-router.get("/:id", (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const entrega = entregas.buscarPorId(req.params.id);
+    const entrega = await entregas.buscarPorId(req.params.id);
     if (!entrega) {
       return res.status(404).json({ error: "Entrega não encontrada" });
     }
@@ -187,14 +189,14 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const novaEntrega = entregas.criar({
+    const novaEntrega = await entregas.criar({
       data,
       horario,
       descricao,
       antecedencia_minutos: antecedencia_minutos || 30,
     });
 
-    const tokenData = tokens.obter();
+    const tokenData = await tokens.obter();
     const voiceMonkeyConfigurado = !!tokenData?.access_token;
 
     let agendado = false;
@@ -228,13 +230,13 @@ router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const entrega = entregas.buscarPorId(id);
+    const entrega = await entregas.buscarPorId(id);
     if (!entrega) {
       return res.status(404).json({ error: "Entrega não encontrada" });
     }
 
     cancelarAgendamento(parseInt(id));
-    entregas.remover(id);
+    await entregas.remover(id);
 
     res.json({ success: true, message: "Entrega removida" });
   } catch (error) {
@@ -248,13 +250,13 @@ router.post("/:id/concluir", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const entrega = entregas.buscarPorId(id);
+    const entrega = await entregas.buscarPorId(id);
     if (!entrega) {
       return res.status(404).json({ error: "Entrega não encontrada" });
     }
 
     cancelarAgendamento(parseInt(id));
-    entregas.concluir(id);
+    await entregas.concluir(id);
 
     res.json({ success: true, message: "Entrega marcada como concluída" });
   } catch (error) {
@@ -267,7 +269,7 @@ router.post("/:id/concluir", async (req, res) => {
 router.post("/testar-notificacao", async (req, res) => {
   try {
     await enviarAnuncio(
-      "Teste do sistema Salgados Delivery! Se você ouviu isso, a integração está funcionando perfeitamente.",
+      "Teste do sistema Simone Salgados! Se você ouviu isso, a integração está funcionando perfeitamente.",
     );
     res.json({ success: true, message: "Anúncio de teste enviado!" });
   } catch (error) {
@@ -278,4 +280,4 @@ router.post("/testar-notificacao", async (req, res) => {
   }
 });
 
-module.exports = router;
+module.exports = { router, inicializarAgendamentos };

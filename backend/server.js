@@ -4,8 +4,12 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
+const { initDatabase, tokens } = require("./database");
 const authRoutes = require("./routes/auth");
-const entregasRoutes = require("./routes/entregas");
+const {
+  router: entregasRoutes,
+  inicializarAgendamentos,
+} = require("./routes/entregas");
 const estoqueRoutes = require("./routes/estoque");
 
 const app = express();
@@ -35,14 +39,16 @@ app.get("/health", (req, res) => {
 });
 
 // Rota de status da autenticação
-app.get("/api/auth/status", (req, res) => {
-  const { tokens } = require("./database");
-  const tokenData = tokens.obter();
-
-  res.json({
-    authenticated: !!tokenData && !!tokenData.access_token,
-    expiresAt: tokenData?.expires_at || null,
-  });
+app.get("/api/auth/status", async (req, res) => {
+  try {
+    const tokenData = await tokens.obter();
+    res.json({
+      authenticated: !!tokenData && !!tokenData.access_token,
+      expiresAt: tokenData?.expires_at || null,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao verificar status" });
+  }
 });
 
 // Página de privacidade (placeholder para Amazon)
@@ -52,7 +58,7 @@ app.get("/privacy", (req, res) => {
         <html lang="pt-BR">
         <head>
             <meta charset="UTF-8">
-            <title>Política de Privacidade - Salgados Delivery</title>
+            <title>Política de Privacidade - Simone Salgados</title>
         </head>
         <body style="font-family: Arial; padding: 40px; max-width: 800px; margin: 0 auto;">
             <h1>Política de Privacidade</h1>
@@ -60,10 +66,9 @@ app.get("/privacy", (req, res) => {
             <ul>
                 <li>Data e horário das entregas</li>
                 <li>Descrição dos pedidos</li>
-                <li>Token de acesso à sua conta Amazon (para criar lembretes)</li>
+                <li>Token de acesso ao Voice Monkey (para criar anúncios)</li>
             </ul>
-            <p>Seus dados são armazenados localmente e não são compartilhados com terceiros.</p>
-            <p>Contato: seu-email@exemplo.com</p>
+            <p>Seus dados são armazenados de forma segura e não são compartilhados com terceiros.</p>
         </body>
         </html>
     `);
@@ -83,9 +88,25 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Inicia o servidor
-app.listen(PORT, () => {
-  console.log(`Servidor rodando em http://localhost:${PORT}`);
-  console.log(`Frontend: http://localhost:${PORT}`);
-  console.log(`API: http://localhost:${PORT}/api`);
-});
+// Inicializa o banco de dados e inicia o servidor
+async function startServer() {
+  try {
+    // Inicializa as tabelas do banco
+    await initDatabase();
+
+    // Inicializa os agendamentos de notificação
+    await inicializarAgendamentos();
+
+    // Inicia o servidor
+    app.listen(PORT, () => {
+      console.log(`Servidor rodando em http://localhost:${PORT}`);
+      console.log(`Frontend: http://localhost:${PORT}`);
+      console.log(`API: http://localhost:${PORT}/api`);
+    });
+  } catch (error) {
+    console.error("Erro ao iniciar servidor:", error);
+    process.exit(1);
+  }
+}
+
+startServer();
