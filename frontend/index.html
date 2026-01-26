@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <meta name="theme-color" content="#f97316" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta
+            name="apple-mobile-web-app-status-bar-style"
+            content="black-translucent"
+        />
+        <meta name="apple-mobile-web-app-title" content="Salgados" />
+        <link
+            rel="apple-touch-icon"
+            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23f97316' width='100' height='100' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>🥟</text></svg>"
+        />
+        <link
+            rel="icon"
+            type="image/svg+xml"
+            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥟</text></svg>"
+        />
+        <link rel="manifest" href="manifest.json" />
+        <title>Salgados Delivery</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+            * {
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
+            }
+            body {
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                user-select: none;
+                overscroll-behavior: none;
+            }
+            input,
+            textarea,
+            select {
+                -webkit-user-select: auto;
+                user-select: auto;
+                font-size: 16px !important; /* Previne zoom no iOS */
+            }
+            .safe-top {
+                padding-top: env(safe-area-inset-top);
+            }
+            .safe-bottom {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+            .spinner {
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .overlay {
+                opacity: 0;
+                visibility: hidden;
+                transition:
+                    opacity 0.3s ease-in-out,
+                    visibility 0.3s;
+            }
+            .overlay.open {
+                opacity: 1;
+                visibility: visible;
+            }
+            /* Animação de pulso para atenção */
+            @keyframes pulse-attention {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.5;
+                }
+            }
+            .animate-pulse-attention {
+                animation: pulse-attention 1.5s ease-in-out infinite;
+            }
+            /* Botões maiores para toque */
+            .btn-touch {
+                min-height: 48px;
+                min-width: 48px;
+            }
+            /* Cards com área de toque maior */
+            .card-touch {
+                padding: 16px;
+            }
+            /* Scroll suave no iOS */
+            .scroll-container {
+                -webkit-overflow-scrolling: touch;
+                overflow-y: auto;
+            }
+            /* Itens do pedido - estilo chip */
+            .item-chip {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 12px;
+                background: #f3f4f6;
+                border-radius: 9999px;
+                margin: 4px;
+            }
+            .item-chip.selected {
+                background: #fed7aa;
+                border: 2px solid #f97316;
+            }
+        </style>
+    </head>
+    <body class="bg-gray-100 min-h-screen safe-top safe-bottom">
+        <!-- Overlay -->
+        <div
+            id="overlay"
+            class="overlay fixed inset-0 bg-black bg-opacity-50 z-40"
+            onclick="toggleSidebar()"
+        ></div>
+
+        <!-- Sidebar Menu -->
+        <aside
+            id="sidebar"
+            class="sidebar fixed top-0 left-0 h-full w-72 bg-white shadow-xl z-50 safe-top"
+        >
+            <div class="p-4 bg-orange-500 text-white">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-bold">🥟 Menu</h2>
+                    <button
+                        onclick="toggleSidebar()"
+                        class="p-3 hover:bg-orange-600 rounded-lg btn-touch"
+                    >
+                        <svg
+                            class="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            ></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <nav class="p-4">
+                <ul class="space-y-2">
+                    <li>
+                        <button
+                            onclick="showPage('home')"
+                            class="menu-item w-full flex items-center gap-3 p-4 rounded-lg hover:bg-orange-50 text-gray-700 btn-touch"
+                            data-page="home"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                                ></path>
+                            </svg>
+                            <span class="text-lg">Início</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button
+                            onclick="showPage('estoque')"
+                            class="menu-item w-full flex items-center gap-3 p-4 rounded-lg hover:bg-orange-50 text-gray-700 btn-touch"
+                            data-page="estoque"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                                ></path>
+                            </svg>
+                            <span class="text-lg">Estoque</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button
+                            onclick="showPage('historico')"
+                            class="menu-item w-full flex items-center gap-3 p-4 rounded-lg hover:bg-orange-50 text-gray-700 btn-touch"
+                            data-page="historico"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                ></path>
+                            </svg>
+                            <span class="text-lg">Histórico</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button
+                            onclick="showPage('config')"
+                            class="menu-item w-full flex items-center gap-3 p-4 rounded-lg hover:bg-orange-50 text-gray-700 btn-touch"
+                            data-page="config"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                                ></path>
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                ></path>
+                            </svg>
+                            <span class="text-lg">Configurações</span>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+            <div
+                class="absolute bottom-0 left-0 right-0 p-4 border-t safe-bottom"
+            >
+                <p class="text-xs text-gray-400 text-center">
+                    Salgados Delivery v1.2
+                </p>
+            </div>
+        </aside>
+
+        <div id="app" class="max-w-lg mx-auto pb-20">
+            <!-- Header -->
+            <header
+                class="bg-orange-500 text-white p-4 sticky top-0 z-10 shadow-lg safe-top"
+            >
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <button
+                            onclick="toggleSidebar()"
+                            class="p-3 hover:bg-orange-600 rounded-lg -ml-2 btn-touch"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M4 6h16M4 12h16M4 18h16"
+                                ></path>
+                            </svg>
+                        </button>
+                        <h1 id="page-title" class="text-xl font-bold">
+                            🥟 Salgados
+                        </h1>
+                    </div>
+                </div>
+                <div id="auth-status" class="text-xs mt-2 opacity-80"></div>
+            </header>
+
+            <!-- Toast -->
+            <div
+                id="toast"
+                class="hidden fixed top-24 left-4 right-4 p-4 rounded-lg shadow-lg z-50 text-center font-medium"
+            ></div>
+
+            <!-- Page: Home -->
+            <div id="page-home" class="page scroll-container">
+                <!-- Estoque Resumo -->
+                <section
+                    class="bg-gradient-to-r from-orange-500 to-orange-600 m-4 rounded-xl shadow-md p-4 text-white"
+                >
+                    <h2 class="text-sm font-medium opacity-80 mb-2">
+                        Estoque Disponível
+                    </h2>
+                    <div
+                        id="estoque-resumo"
+                        class="grid grid-cols-3 gap-2 text-center"
+                    >
+                        <p class="text-sm opacity-70">Carregando...</p>
+                    </div>
+                </section>
+
+                <!-- Formulário de Nova Entrega -->
+                <section
+                    class="bg-white m-4 rounded-xl shadow-md p-4 card-touch"
+                >
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                        Nova Entrega
+                    </h2>
+                    <form id="form-entrega" class="space-y-5">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                    >Data</label
+                                >
+                                <input
+                                    type="date"
+                                    id="data"
+                                    required
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                    >Horário</label
+                                >
+                                <select
+                                    id="horario"
+                                    required
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+                                >
+                                    <option value="">Selecione</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Itens do pedido (chips selecionáveis) -->
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                                >Itens do Pedido</label
+                            >
+                            <p class="text-xs text-gray-500 mb-3">
+                                Toque para selecionar, depois informe a
+                                quantidade
+                            </p>
+                            <div
+                                id="itens-disponiveis"
+                                class="flex flex-wrap gap-2 mb-3"
+                            ></div>
+                            <div
+                                id="itens-selecionados"
+                                class="space-y-3"
+                            ></div>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                                >Cliente / Observação</label
+                            >
+                            <input
+                                type="text"
+                                id="descricao"
+                                required
+                                maxlength="200"
+                                placeholder="Ex: João - Festa de aniversário"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                                >Avisar com antecedência de</label
+                            >
+                            <select
+                                id="antecedencia"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+                            >
+                                <option value="15">15 minutos</option>
+                                <option value="30" selected>30 minutos</option>
+                                <option value="45">45 minutos</option>
+                                <option value="60">1 hora</option>
+                                <option value="120">2 horas</option>
+                            </select>
+                        </div>
+
+                        <button
+                            type="submit"
+                            id="btn-salvar"
+                            class="w-full bg-orange-500 text-white py-4 rounded-xl font-semibold text-lg hover:bg-orange-600 active:bg-orange-700 flex items-center justify-center gap-2 btn-touch shadow-md"
+                        >
+                            <span>Agendar Entrega</span>
+                            <span id="loading" class="hidden">
+                                <svg
+                                    class="w-5 h-5 spinner"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        class="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        stroke-width="4"
+                                    ></circle>
+                                    <path
+                                        class="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                    ></path>
+                                </svg>
+                            </span>
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Lista de Entregas Agendadas -->
+                <section class="m-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-semibold text-gray-800">
+                            Entregas Agendadas
+                        </h2>
+                        <button
+                            id="btn-refresh"
+                            class="text-orange-500 p-3 hover:bg-orange-50 rounded-lg btn-touch"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                ></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="lista-entregas" class="space-y-3"></div>
+                    <div
+                        id="lista-vazia"
+                        class="hidden bg-white rounded-xl p-8 text-center text-gray-500"
+                    >
+                        <p class="text-5xl mb-3">📭</p>
+                        <p class="text-lg">Nenhuma entrega agendada</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Page: Estoque -->
+            <div id="page-estoque" class="page hidden scroll-container">
+                <section
+                    class="bg-white m-4 rounded-xl shadow-md p-4 card-touch"
+                >
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                        Adicionar Produto
+                    </h2>
+                    <form id="form-estoque" class="space-y-4">
+                        <input
+                            type="text"
+                            id="estoque-nome"
+                            required
+                            placeholder="Nome do salgado (ex: Coxinha)"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                        <div class="grid grid-cols-2 gap-3">
+                            <input
+                                type="number"
+                                id="estoque-quantidade"
+                                min="0"
+                                inputmode="numeric"
+                                placeholder="Quantidade"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                            />
+                            <input
+                                type="number"
+                                id="estoque-preco"
+                                min="0"
+                                step="0.01"
+                                inputmode="decimal"
+                                placeholder="Preço unit. (R$)"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            class="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold hover:bg-orange-600 active:bg-orange-700 btn-touch"
+                        >
+                            Adicionar ao Estoque
+                        </button>
+                    </form>
+                </section>
+
+                <section class="m-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">
+                        Produtos em Estoque
+                    </h2>
+                    <div id="lista-estoque" class="space-y-3"></div>
+                    <div
+                        id="estoque-vazio"
+                        class="hidden bg-white rounded-xl p-8 text-center text-gray-500"
+                    >
+                        <p class="text-5xl mb-3">📦</p>
+                        <p class="text-lg">Nenhum produto cadastrado</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Page: Histórico -->
+            <div id="page-historico" class="page hidden scroll-container">
+                <section class="m-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-semibold text-gray-800">
+                            Histórico
+                        </h2>
+                        <button
+                            id="btn-refresh-historico"
+                            class="text-orange-500 p-3 hover:bg-orange-50 rounded-lg btn-touch"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                ></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Filtros como abas -->
+                    <div
+                        class="bg-white rounded-xl p-2 mb-4 shadow-md grid grid-cols-4 gap-1"
+                    >
+                        <button
+                            onclick="filtrarHistorico('todos')"
+                            class="filtro-btn py-3 px-2 rounded-lg text-sm font-medium bg-orange-500 text-white btn-touch"
+                            data-filtro="todos"
+                        >
+                            Todos
+                        </button>
+                        <button
+                            onclick="filtrarHistorico('atencao')"
+                            class="filtro-btn py-3 px-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 btn-touch"
+                            data-filtro="atencao"
+                        >
+                            ⚠️
+                        </button>
+                        <button
+                            onclick="filtrarHistorico('concluida')"
+                            class="filtro-btn py-3 px-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 btn-touch"
+                            data-filtro="concluida"
+                        >
+                            ✓
+                        </button>
+                        <button
+                            onclick="filtrarHistorico('agendada')"
+                            class="filtro-btn py-3 px-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 btn-touch"
+                            data-filtro="agendada"
+                        >
+                            ⏳
+                        </button>
+                    </div>
+                    <div id="lista-historico" class="space-y-3"></div>
+                    <div
+                        id="historico-vazio"
+                        class="hidden bg-white rounded-xl p-8 text-center text-gray-500"
+                    >
+                        <p class="text-5xl mb-3">📋</p>
+                        <p class="text-lg">Nenhum pedido no histórico</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Page: Configurações -->
+            <div id="page-config" class="page hidden scroll-container">
+                <section
+                    class="bg-white m-4 rounded-xl shadow-md p-4 card-touch"
+                >
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">
+                        Configurar Voice Monkey
+                    </h2>
+                    <div
+                        class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800"
+                    >
+                        <p class="font-semibold mb-2">Passo a passo:</p>
+                        <ol class="list-decimal list-inside space-y-2">
+                            <li>
+                                No app <b>Alexa</b>, ative a skill
+                                <b>"Voice Monkey"</b>
+                            </li>
+                            <li>
+                                Acesse
+                                <a
+                                    href="https://voicemonkey.io"
+                                    target="_blank"
+                                    class="underline text-blue-600 font-medium"
+                                    >voicemonkey.io</a
+                                >
+                            </li>
+                            <li>Copie o <b>API Token</b></li>
+                            <li>Copie o <b>Device ID</b> do seu Echo</li>
+                        </ol>
+                    </div>
+                    <div class="mb-4">
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                            >Token</label
+                        >
+                        <input
+                            type="text"
+                            id="input-token"
+                            placeholder="Cole seu API Token aqui"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                    </div>
+                    <div class="mb-4">
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                            >Device ID</label
+                        >
+                        <input
+                            type="text"
+                            id="input-device"
+                            placeholder="Cole o ID do seu dispositivo"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button
+                            id="btn-salvar-config"
+                            class="bg-orange-500 text-white py-4 rounded-xl font-semibold hover:bg-orange-600 active:bg-orange-700 btn-touch"
+                        >
+                            Salvar
+                        </button>
+                        <button
+                            id="btn-testar"
+                            class="bg-green-500 text-white py-4 rounded-xl font-semibold hover:bg-green-600 active:bg-green-700 btn-touch"
+                        >
+                            Testar Alexa
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <footer class="text-center text-gray-400 text-xs p-4 safe-bottom">
+                <p>A Alexa vai te avisar em voz alta!</p>
+            </footer>
+        </div>
+
+        <script src="js/app.js"></script>
+    </body>
+</html>
