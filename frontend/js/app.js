@@ -103,12 +103,12 @@ window.showPage = function (page) {
   });
 
   const titulos = {
-    home: "🍗 Simone Salgados",
+    home: "🥟 Simone Salgados",
     estoque: "📦 Estoque",
     historico: "📋 Histórico",
     config: "⚙️ Configurações",
   };
-  elements.pageTitle.textContent = titulos[page] || "🍗 Simone Salgados";
+  elements.pageTitle.textContent = titulos[page] || "🥟 Simone Salgados";
 
   toggleSidebar();
 
