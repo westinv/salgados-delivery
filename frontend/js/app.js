@@ -51,29 +51,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   elements.data.min = new Date().toISOString().split("T")[0];
   elements.data.value = elements.data.min;
 
-  // Popula o seletor de horário com formato 24h
-  popularHorarios();
-
   await checkAuthStatus();
   await carregarEstoque();
   await carregarEntregas();
   registerServiceWorker();
 });
-
-// Popula select de horários em formato 24h (06:00 até 23:30)
-function popularHorarios() {
-  const select = elements.horario;
-  for (let h = 6; h <= 23; h++) {
-    for (let m = 0; m < 60; m += 30) {
-      const hora = h.toString().padStart(2, "0");
-      const minuto = m.toString().padStart(2, "0");
-      const option = document.createElement("option");
-      option.value = `${hora}:${minuto}`;
-      option.textContent = `${hora}:${minuto}`;
-      select.appendChild(option);
-    }
-  }
-}
 
 // Event Listeners
 elements.form.addEventListener("submit", handleSubmit);
