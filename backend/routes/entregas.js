@@ -12,7 +12,7 @@ const VOICE_MONKEY_URL = "https://api-v2.voicemonkey.io/announcement";
 const agendamentos = new Map();
 
 // Função para enviar anúncio via Voice Monkey
-async function enviarAnuncio(texto, repetir = 2) {
+async function enviarAnuncio(texto, repetir = 3) {
   const tokenData = await tokens.obter();
 
   if (!tokenData || !tokenData.access_token) {
