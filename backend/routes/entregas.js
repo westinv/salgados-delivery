@@ -183,9 +183,12 @@ router.post("/", async (req, res) => {
     const dataHoraEntrega = new Date(`${data}T${horario}:00`);
     const agora = new Date();
 
-    if (dataHoraEntrega <= agora) {
+    // Permite agendar se faltar pelo menos 5 minutos
+    const cincoMinutos = 5 * 60 * 1000;
+    if (dataHoraEntrega.getTime() <= agora.getTime() + cincoMinutos) {
       return res.status(400).json({
-        error: "A data/hora da entrega deve ser no futuro",
+        error:
+          "A entrega deve ser agendada com pelo menos 5 minutos de antecedência",
       });
     }
 
