@@ -36,8 +36,7 @@ async function enviarAnuncio(texto, repetir = 3) {
       params: {
         token: token,
         device: device,
-        text: textoRepetido,
-        voice: "Camila", // Voz brasileira feminina
+        announcement: textoRepetido,
       },
     });
 
