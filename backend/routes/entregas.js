@@ -12,7 +12,7 @@ const VOICE_MONKEY_URL = "https://api-v2.voicemonkey.io/announcement";
 const agendamentos = new Map();
 
 // Função para enviar anúncio via Voice Monkey
-async function enviarAnuncio(texto) {
+async function enviarAnuncio(texto, repetir = 3) {
   const tokenData = await tokens.obter();
 
   if (!tokenData || !tokenData.access_token) {
@@ -26,16 +26,18 @@ async function enviarAnuncio(texto) {
     throw new Error("Configuração inválida. Use o formato: TOKEN:DEVICE_ID");
   }
 
-  console.log("Enviando anúncio para Alexa:", texto);
+  // Repete o texto o número de vezes especificado
+  const textoRepetido = Array(repetir).fill(texto).join(". . . ");
+
+  console.log("Enviando anúncio para Alexa:", texto, `(${repetir}x)`);
 
   try {
     const response = await axios.get(VOICE_MONKEY_URL, {
       params: {
         token: token,
         device: device,
-        text: texto,
-        voice: "Vitoria", // Voz brasileira
-        language: "pt-BR",
+        text: textoRepetido,
+        voice: "Camila", // Voz brasileira feminina
       },
     });
 
@@ -281,6 +283,7 @@ router.post("/testar-notificacao", async (req, res) => {
   try {
     await enviarAnuncio(
       "Teste do sistema Simone Salgados! Se você ouviu isso, a integração está funcionando perfeitamente.",
+      1, // Teste só fala 1 vez
     );
     res.json({ success: true, message: "Anúncio de teste enviado!" });
   } catch (error) {
