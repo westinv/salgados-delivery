@@ -52,7 +52,10 @@ async function enviarAnuncio(texto) {
 
 // Função para agendar notificação
 function agendarNotificacao(entrega) {
-  const dataHoraEntrega = new Date(`${entrega.data}T${entrega.horario}:00`);
+  // Interpreta a data/hora como horário de Brasília (UTC-3)
+  const dataHoraEntrega = new Date(
+    `${entrega.data}T${entrega.horario}:00-03:00`,
+  );
   const dataHoraAviso = new Date(
     dataHoraEntrega.getTime() - entrega.antecedencia_minutos * 60 * 1000,
   );
@@ -105,7 +108,9 @@ async function reagendarEntregasPendentes() {
 
   lista.forEach((entrega) => {
     if (entrega.status === "agendada") {
-      const dataHoraEntrega = new Date(`${entrega.data}T${entrega.horario}:00`);
+      const dataHoraEntrega = new Date(
+        `${entrega.data}T${entrega.horario}:00-03:00`,
+      );
       if (dataHoraEntrega > agora) {
         agendarNotificacao(entrega);
       }
@@ -121,7 +126,9 @@ async function verificarAutoConclusao() {
   const agora = new Date();
 
   for (const entrega of lista) {
-    const dataHoraEntrega = new Date(`${entrega.data}T${entrega.horario}:00`);
+    const dataHoraEntrega = new Date(
+      `${entrega.data}T${entrega.horario}:00-03:00`,
+    );
     const duasHorasDepois = new Date(
       dataHoraEntrega.getTime() + 2 * 60 * 60 * 1000,
     );
@@ -180,7 +187,8 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const dataHoraEntrega = new Date(`${data}T${horario}:00`);
+    // Interpreta a data/hora como horário de Brasília (UTC-3)
+    const dataHoraEntrega = new Date(`${data}T${horario}:00-03:00`);
     const agora = new Date();
 
     // Permite agendar se faltar pelo menos 5 minutos
