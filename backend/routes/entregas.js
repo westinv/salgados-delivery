@@ -12,7 +12,7 @@ const VOICE_MONKEY_URL = "https://api-v2.voicemonkey.io/announcement";
 const agendamentos = new Map();
 
 // Função para enviar anúncio via Voice Monkey
-async function enviarAnuncio(texto, repetir = 3) {
+async function enviarAnuncio(texto, repetir = 2) {
   const tokenData = await tokens.obter();
 
   if (!tokenData || !tokenData.access_token) {
@@ -32,12 +32,10 @@ async function enviarAnuncio(texto, repetir = 3) {
   console.log("Enviando anúncio para Alexa:", texto, `(${repetir}x)`);
 
   try {
-    const response = await axios.get(VOICE_MONKEY_URL, {
-      params: {
-        token: token,
-        device: device,
-        announcement: textoRepetido,
-      },
+    const response = await axios.post(VOICE_MONKEY_URL, {
+      token: token,
+      device: device,
+      text: textoRepetido,
     });
 
     console.log("Anúncio enviado com sucesso:", response.data);
