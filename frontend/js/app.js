@@ -338,7 +338,7 @@ window.carregarAgenda = async function () {
 
 function formatarDataCompleta(dataStr) {
   const [ano, mes, dia] = dataStr.split("-");
-  const data = new Date(ano, mes - 1, dia);
+  const data = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
   const diasSemana = [
     "Domingo",
     "Segunda",
@@ -349,21 +349,21 @@ function formatarDataCompleta(dataStr) {
     "Sábado",
   ];
   const meses = [
-    "jan",
-    "fev",
-    "mar",
-    "abr",
-    "mai",
-    "jun",
-    "jul",
-    "ago",
-    "set",
-    "out",
-    "nov",
-    "dez",
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
   ];
 
-  return `${diasSemana[data.getDay()]}, ${dia} de ${meses[parseInt(mes) - 1]}`;
+  return `${diasSemana[data.getDay()]}, ${parseInt(dia)} de ${meses[parseInt(mes) - 1]}`;
 }
 
 // Filtro do histórico
