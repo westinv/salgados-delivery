@@ -4,7 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
-const { initDatabase, tokens } = require("./database");
+const { initDatabase, tokens, usuarios, sessoes } = require("./database");
 const authRoutes = require("./routes/auth");
 const {
   router: entregasRoutes,
@@ -36,6 +36,89 @@ app.use("/api/estoque", estoqueRoutes);
 // Rota de health check (útil para o Render)
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Rotas de login
+app.post("/api/login", async (req, res) => {
+  try {
+    const { senha } = req.body;
+
+    if (!senha) {
+      return res.status(400).json({ error: "Senha é obrigatória" });
+    }
+
+    const senhaCorreta = await usuarios.verificarSenha(senha);
+
+    if (!senhaCorreta) {
+      return res.status(401).json({ error: "Senha incorreta" });
+    }
+
+    // Cria sessão
+    const sessao = await sessoes.criar();
+
+    res.json({
+      success: true,
+      token: sessao.token,
+      expiresAt: sessao.expiresAt,
+    });
+  } catch (error) {
+    console.error("Erro no login:", error);
+    res.status(500).json({ error: "Erro ao fazer login" });
+  }
+});
+
+app.post("/api/logout", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+
+    if (token) {
+      await sessoes.remover(token);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao fazer logout" });
+  }
+});
+
+app.get("/api/verificar-sessao", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const valida = await sessoes.verificar(token);
+
+    res.json({ autenticado: valida });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao verificar sessão" });
+  }
+});
+
+app.post("/api/alterar-senha", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const valida = await sessoes.verificar(token);
+
+    if (!valida) {
+      return res.status(401).json({ error: "Não autenticado" });
+    }
+
+    const { senhaAtual, novaSenha } = req.body;
+
+    if (!senhaAtual || !novaSenha) {
+      return res.status(400).json({ error: "Senhas são obrigatórias" });
+    }
+
+    const senhaCorreta = await usuarios.verificarSenha(senhaAtual);
+
+    if (!senhaCorreta) {
+      return res.status(401).json({ error: "Senha atual incorreta" });
+    }
+
+    await usuarios.alterarSenha(novaSenha);
+
+    res.json({ success: true, message: "Senha alterada com sucesso" });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao alterar senha" });
+  }
 });
 
 // Rota de status da autenticação

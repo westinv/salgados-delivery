@@ -120,6 +120,42 @@
         </style>
     </head>
     <body class="bg-gray-100 min-h-screen safe-top safe-bottom">
+        <!-- Tela de Login -->
+        <div
+            id="login-screen"
+            class="fixed inset-0 bg-gradient-to-br from-orange-500 to-orange-600 z-50 flex items-center justify-center p-4"
+        >
+            <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
+                <div class="text-center mb-8">
+                    <span class="text-6xl">🥟</span>
+                    <h1 class="text-2xl font-bold text-gray-800 mt-4">
+                        Simone Salgados
+                    </h1>
+                    <p class="text-gray-500 mt-2">Digite a senha para entrar</p>
+                </div>
+                <form id="form-login" class="space-y-4">
+                    <input
+                        type="password"
+                        id="login-senha"
+                        placeholder="Senha"
+                        required
+                        class="w-full px-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-center text-lg"
+                    />
+                    <button
+                        type="submit"
+                        id="btn-login"
+                        class="w-full bg-orange-500 text-white py-4 rounded-xl font-semibold text-lg hover:bg-orange-600 active:bg-orange-700 btn-touch"
+                    >
+                        Entrar
+                    </button>
+                </form>
+                <p
+                    id="login-erro"
+                    class="text-red-500 text-center mt-4 hidden"
+                ></p>
+            </div>
+        </div>
+
         <!-- Overlay -->
         <div
             id="overlay"
@@ -199,6 +235,28 @@
                                 ></path>
                             </svg>
                             <span class="text-lg">Estoque</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button
+                            onclick="showPage('agenda')"
+                            class="menu-item w-full flex items-center gap-3 p-4 rounded-lg hover:bg-orange-50 text-gray-700 btn-touch"
+                            data-page="agenda"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                ></path>
+                            </svg>
+                            <span class="text-lg">Agenda</span>
                         </button>
                     </li>
                     <li>
@@ -326,7 +384,7 @@
                         Nova Entrega
                     </h2>
                     <form id="form-entrega" class="space-y-5">
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-4">
                             <div>
                                 <label
                                     class="block text-sm font-medium text-gray-700 mb-2"
@@ -336,7 +394,7 @@
                                     type="date"
                                     id="data"
                                     required
-                                    class="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                                 />
                             </div>
                             <div>
@@ -348,7 +406,7 @@
                                     type="time"
                                     id="horario"
                                     required
-                                    class="w-full px-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white text-sm"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
                                 />
                             </div>
                         </div>
@@ -602,6 +660,49 @@
                 </section>
             </div>
 
+            <!-- Page: Agenda (Pedidos Futuros) -->
+            <div id="page-agenda" class="page hidden scroll-container">
+                <section class="m-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-semibold text-gray-800">
+                            Pedidos Futuros
+                        </h2>
+                        <button
+                            onclick="carregarAgenda()"
+                            class="text-orange-500 p-3 hover:bg-orange-50 rounded-lg btn-touch"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                ></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Timeline de pedidos -->
+                    <div id="agenda-timeline" class="space-y-4"></div>
+
+                    <div
+                        id="agenda-vazia"
+                        class="hidden bg-white rounded-xl p-8 text-center text-gray-500"
+                    >
+                        <p class="text-5xl mb-3">📅</p>
+                        <p class="text-lg">Nenhum pedido agendado</p>
+                        <p class="text-sm mt-2">
+                            Adicione entregas na tela inicial
+                        </p>
+                    </div>
+                </section>
+            </div>
+
             <!-- Page: Histórico -->
             <div id="page-historico" class="page hidden scroll-container">
                 <section class="m-4">
@@ -740,6 +841,47 @@
                             Testar Alexa
                         </button>
                     </div>
+                </section>
+
+                <!-- Alterar Senha -->
+                <section
+                    class="bg-white m-4 rounded-xl shadow-md p-4 card-touch"
+                >
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">
+                        Alterar Senha
+                    </h2>
+                    <form id="form-alterar-senha" class="space-y-4">
+                        <input
+                            type="password"
+                            id="senha-atual"
+                            placeholder="Senha atual"
+                            required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                        <input
+                            type="password"
+                            id="senha-nova"
+                            placeholder="Nova senha"
+                            required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                        <button
+                            type="submit"
+                            class="w-full bg-blue-500 text-white py-4 rounded-xl font-semibold hover:bg-blue-600 active:bg-blue-700 btn-touch"
+                        >
+                            Alterar Senha
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Logout -->
+                <section class="m-4">
+                    <button
+                        id="btn-logout"
+                        class="w-full bg-red-500 text-white py-4 rounded-xl font-semibold hover:bg-red-600 active:bg-red-700 btn-touch"
+                    >
+                        Sair do App
+                    </button>
                 </section>
             </div>
 

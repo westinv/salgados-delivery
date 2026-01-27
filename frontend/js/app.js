@@ -2,6 +2,101 @@
 
 const API_BASE = window.location.origin;
 
+// ==================== AUTENTICAÇÃO ====================
+
+let tokenSessao = localStorage.getItem("sessaoToken");
+
+async function verificarSessao() {
+  if (!tokenSessao) {
+    mostrarLogin();
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/api/verificar-sessao`, {
+      headers: { Authorization: `Bearer ${tokenSessao}` },
+    });
+    const data = await response.json();
+
+    if (data.autenticado) {
+      esconderLogin();
+      return true;
+    } else {
+      localStorage.removeItem("sessaoToken");
+      tokenSessao = null;
+      mostrarLogin();
+      return false;
+    }
+  } catch (error) {
+    mostrarLogin();
+    return false;
+  }
+}
+
+function mostrarLogin() {
+  document.getElementById("login-screen").classList.remove("hidden");
+}
+
+function esconderLogin() {
+  document.getElementById("login-screen").classList.add("hidden");
+}
+
+async function fazerLogin(senha) {
+  try {
+    const response = await fetch(`${API_BASE}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ senha }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      tokenSessao = data.token;
+      localStorage.setItem("sessaoToken", tokenSessao);
+      esconderLogin();
+      return true;
+    } else {
+      return false;
+    }
+  } catch (error) {
+    return false;
+  }
+}
+
+async function fazerLogout() {
+  try {
+    await fetch(`${API_BASE}/api/logout`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${tokenSessao}` },
+    });
+  } catch (error) {
+    // ignora erro
+  }
+
+  localStorage.removeItem("sessaoToken");
+  tokenSessao = null;
+  mostrarLogin();
+}
+
+async function alterarSenha(senhaAtual, novaSenha) {
+  try {
+    const response = await fetch(`${API_BASE}/api/alterar-senha`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${tokenSessao}`,
+      },
+      body: JSON.stringify({ senhaAtual, novaSenha }),
+    });
+
+    const data = await response.json();
+    return { success: response.ok, message: data.message || data.error };
+  } catch (error) {
+    return { success: false, message: "Erro de conexão" };
+  }
+}
+
 const elements = {
   form: document.getElementById("form-entrega"),
   formEstoque: document.getElementById("form-estoque"),
@@ -48,14 +143,74 @@ let embalagemQtd = 1;
 
 // Inicialização
 document.addEventListener("DOMContentLoaded", async () => {
+  // Verifica sessão primeiro
+  const logado = await verificarSessao();
+
+  if (logado) {
+    await inicializarApp();
+  }
+
+  // Event listener do form de login
+  document
+    .getElementById("form-login")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const senha = document.getElementById("login-senha").value;
+      const erroEl = document.getElementById("login-erro");
+
+      const sucesso = await fazerLogin(senha);
+
+      if (sucesso) {
+        erroEl.classList.add("hidden");
+        document.getElementById("login-senha").value = "";
+        await inicializarApp();
+      } else {
+        erroEl.textContent = "Senha incorreta";
+        erroEl.classList.remove("hidden");
+      }
+    });
+
+  // Event listener do botão de logout
+  document.getElementById("btn-logout").addEventListener("click", async () => {
+    if (confirm("Deseja sair do app?")) {
+      await fazerLogout();
+    }
+  });
+
+  // Event listener do form de alterar senha
+  document
+    .getElementById("form-alterar-senha")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const senhaAtual = document.getElementById("senha-atual").value;
+      const novaSenha = document.getElementById("senha-nova").value;
+
+      if (novaSenha.length < 4) {
+        showToast("A nova senha deve ter pelo menos 4 caracteres", "error");
+        return;
+      }
+
+      const result = await alterarSenha(senhaAtual, novaSenha);
+
+      if (result.success) {
+        showToast("Senha alterada com sucesso!", "success");
+        document.getElementById("form-alterar-senha").reset();
+      } else {
+        showToast(result.message, "error");
+      }
+    });
+
+  registerServiceWorker();
+});
+
+async function inicializarApp() {
   elements.data.min = new Date().toISOString().split("T")[0];
   elements.data.value = elements.data.min;
 
   await checkAuthStatus();
   await carregarEstoque();
   await carregarEntregas();
-  registerServiceWorker();
-});
+}
 
 // Event Listeners
 elements.form.addEventListener("submit", handleSubmit);
@@ -87,6 +242,7 @@ window.showPage = function (page) {
   const titulos = {
     home: "🥟 Simone Salgados",
     estoque: "📦 Estoque",
+    agenda: "📅 Agenda",
     historico: "📋 Histórico",
     config: "⚙️ Configurações",
   };
@@ -97,7 +253,118 @@ window.showPage = function (page) {
   if (page === "historico") renderHistorico();
   if (page === "estoque") renderEstoque();
   if (page === "home") renderItensDisponiveis();
+  if (page === "agenda") carregarAgenda();
 };
+
+// ==================== AGENDA (PEDIDOS FUTUROS) ====================
+
+window.carregarAgenda = async function () {
+  const timeline = document.getElementById("agenda-timeline");
+  const vazio = document.getElementById("agenda-vazia");
+
+  // Filtra apenas entregas agendadas (futuras)
+  const agendadas = entregas.filter((e) => e.status === "agendada");
+
+  if (agendadas.length === 0) {
+    timeline.innerHTML = "";
+    vazio.classList.remove("hidden");
+    return;
+  }
+
+  vazio.classList.add("hidden");
+
+  // Agrupa por data
+  const porData = {};
+  agendadas.forEach((entrega) => {
+    if (!porData[entrega.data]) {
+      porData[entrega.data] = [];
+    }
+    porData[entrega.data].push(entrega);
+  });
+
+  // Ordena datas
+  const datasOrdenadas = Object.keys(porData).sort();
+
+  // Renderiza timeline
+  timeline.innerHTML = datasOrdenadas
+    .map((data) => {
+      const entregasDoDia = porData[data].sort((a, b) =>
+        a.horario.localeCompare(b.horario),
+      );
+      const dataFormatada = formatarDataCompleta(data);
+      const isHoje = data === new Date().toISOString().split("T")[0];
+      const isAmanha =
+        data === new Date(Date.now() + 86400000).toISOString().split("T")[0];
+
+      let label = dataFormatada;
+      if (isHoje) label = `Hoje - ${dataFormatada}`;
+      if (isAmanha) label = `Amanhã - ${dataFormatada}`;
+
+      return `
+      <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="bg-gradient-to-r ${isHoje ? "from-orange-500 to-orange-600" : "from-gray-600 to-gray-700"} text-white px-4 py-3">
+          <p class="font-bold text-lg">${label}</p>
+          <p class="text-sm opacity-80">${entregasDoDia.length} entrega${entregasDoDia.length > 1 ? "s" : ""}</p>
+        </div>
+        <div class="divide-y divide-gray-100">
+          ${entregasDoDia
+            .map(
+              (entrega) => `
+            <div class="p-4 flex items-start gap-4">
+              <div class="flex-shrink-0 w-16 text-center">
+                <p class="text-2xl font-bold text-orange-500">${entrega.horario.substring(0, 5)}</p>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-gray-800 break-words">${escapeHtml(entrega.descricao)}</p>
+                <p class="text-xs text-gray-400 mt-1">Aviso ${entrega.antecedencia_minutos} min antes</p>
+              </div>
+              <div class="flex-shrink-0 flex gap-1">
+                <button onclick="concluirEntrega(${entrega.id})" class="p-2 text-green-500 hover:bg-green-50 rounded-lg">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          `,
+            )
+            .join("")}
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+};
+
+function formatarDataCompleta(dataStr) {
+  const [ano, mes, dia] = dataStr.split("-");
+  const data = new Date(ano, mes - 1, dia);
+  const diasSemana = [
+    "Domingo",
+    "Segunda",
+    "Terça",
+    "Quarta",
+    "Quinta",
+    "Sexta",
+    "Sábado",
+  ];
+  const meses = [
+    "jan",
+    "fev",
+    "mar",
+    "abr",
+    "mai",
+    "jun",
+    "jul",
+    "ago",
+    "set",
+    "out",
+    "nov",
+    "dez",
+  ];
+
+  return `${diasSemana[data.getDay()]}, ${dia} de ${meses[parseInt(mes) - 1]}`;
+}
 
 // Filtro do histórico
 window.filtrarHistorico = function (filtro) {

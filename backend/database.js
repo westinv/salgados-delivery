@@ -70,6 +70,36 @@ async function initDatabase() {
     )
   `);
 
+  // Cria tabela de usuários (login fixo, sem cadastro)
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        senha_hash TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Cria tabela de sessões
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS sessoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT UNIQUE NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Cria usuário padrão se não existir (senha: simone123)
+  const userExists = await db.execute("SELECT * FROM usuarios WHERE id = 1");
+  if (userExists.rows.length === 0) {
+    // Hash simples para a senha padrão "simone123"
+    await db.execute({
+      sql: "INSERT INTO usuarios (id, senha_hash) VALUES (1, ?)",
+      args: ["simone123"],
+    });
+    console.log("Usuário padrão criado (senha: simone123)");
+  }
+
   console.log("Tabelas inicializadas");
 }
 
@@ -288,4 +318,72 @@ const itensPedido = {
   },
 };
 
-module.exports = { db, initDatabase, entregas, tokens, estoque, itensPedido };
+// Funções auxiliares para usuários e sessões
+const usuarios = {
+  verificarSenha: async (senha) => {
+    const result = await db.execute("SELECT * FROM usuarios WHERE id = 1");
+    if (result.rows.length === 0) return false;
+    return result.rows[0].senha_hash === senha;
+  },
+
+  alterarSenha: async (novaSenha) => {
+    return await db.execute({
+      sql: "UPDATE usuarios SET senha_hash = ? WHERE id = 1",
+      args: [novaSenha],
+    });
+  },
+};
+
+const sessoes = {
+  criar: async () => {
+    // Gera token aleatório
+    const token =
+      Math.random().toString(36).substring(2) + Date.now().toString(36);
+    // Expira em 7 dias
+    const expiresAt = new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    await db.execute({
+      sql: "INSERT INTO sessoes (token, expires_at) VALUES (?, ?)",
+      args: [token, expiresAt],
+    });
+
+    return { token, expiresAt };
+  },
+
+  verificar: async (token) => {
+    if (!token) return false;
+
+    const result = await db.execute({
+      sql: "SELECT * FROM sessoes WHERE token = ? AND expires_at > datetime('now')",
+      args: [token],
+    });
+
+    return result.rows.length > 0;
+  },
+
+  remover: async (token) => {
+    return await db.execute({
+      sql: "DELETE FROM sessoes WHERE token = ?",
+      args: [token],
+    });
+  },
+
+  limparExpiradas: async () => {
+    return await db.execute(
+      "DELETE FROM sessoes WHERE expires_at <= datetime('now')",
+    );
+  },
+};
+
+module.exports = {
+  db,
+  initDatabase,
+  entregas,
+  tokens,
+  estoque,
+  itensPedido,
+  usuarios,
+  sessoes,
+};
