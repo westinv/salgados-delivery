@@ -1,7 +1,7 @@
 // routes/entregas.js - CRUD de entregas + integração Voice Monkey (Alexa)
 const express = require("express");
 const axios = require("axios");
-const { entregas, tokens } = require("../database");
+const { entregas, tokens, itensPedido } = require("../database");
 
 const router = express.Router();
 
@@ -178,7 +178,7 @@ router.get("/:id", async (req, res) => {
 // POST /api/entregas - Cria nova entrega
 router.post("/", async (req, res) => {
   try {
-    const { data, horario, descricao, antecedencia_minutos } = req.body;
+    const { data, horario, descricao, antecedencia_minutos, itens } = req.body;
 
     if (!data || !horario || !descricao) {
       return res.status(400).json({
@@ -205,6 +205,17 @@ router.post("/", async (req, res) => {
       descricao,
       antecedencia_minutos: antecedencia_minutos || 30,
     });
+
+    // Salva os itens do pedido se foram enviados
+    if (itens && Array.isArray(itens) && itens.length > 0) {
+      for (const item of itens) {
+        await itensPedido.adicionar(
+          novaEntrega.id,
+          item.estoque_id,
+          item.quantidade,
+        );
+      }
+    }
 
     const tokenData = await tokens.obter();
     const voiceMonkeyConfigurado = !!tokenData?.access_token;

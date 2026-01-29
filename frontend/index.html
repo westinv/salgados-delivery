@@ -283,6 +283,28 @@
                     </li>
                     <li>
                         <button
+                            onclick="showPage('relatorios')"
+                            class="menu-item w-full flex items-center gap-3 p-4 rounded-lg hover:bg-orange-50 text-gray-700 btn-touch"
+                            data-page="relatorios"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                ></path>
+                            </svg>
+                            <span class="text-lg">Relatórios</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button
                             onclick="showPage('config')"
                             class="menu-item w-full flex items-center gap-3 p-4 rounded-lg hover:bg-orange-50 text-gray-700 btn-touch"
                             data-page="config"
@@ -370,7 +392,7 @@
                     </h2>
                     <div
                         id="estoque-resumo"
-                        class="grid grid-cols-3 gap-2 text-center"
+                        class="grid grid-cols-2 gap-3 text-center"
                     >
                         <p class="text-sm opacity-70">Carregando...</p>
                     </div>
@@ -770,6 +792,118 @@
                     >
                         <p class="text-5xl mb-3">📋</p>
                         <p class="text-lg">Nenhum pedido no histórico</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Page: Relatórios -->
+            <div id="page-relatorios" class="page hidden scroll-container">
+                <!-- Filtro de período -->
+                <section class="bg-white m-4 rounded-xl shadow-md p-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">
+                        Período
+                    </h2>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button
+                            onclick="filtrarRelatorio('hoje')"
+                            class="periodo-btn py-3 px-2 rounded-xl text-sm font-medium bg-orange-500 text-white btn-touch"
+                            data-periodo="hoje"
+                        >
+                            Hoje
+                        </button>
+                        <button
+                            onclick="filtrarRelatorio('semana')"
+                            class="periodo-btn py-3 px-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 btn-touch"
+                            data-periodo="semana"
+                        >
+                            Semana
+                        </button>
+                        <button
+                            onclick="filtrarRelatorio('mes')"
+                            class="periodo-btn py-3 px-2 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 btn-touch"
+                            data-periodo="mes"
+                        >
+                            Mês
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Resumo Financeiro -->
+                <section
+                    class="bg-gradient-to-r from-green-500 to-green-600 m-4 rounded-xl shadow-md p-4 text-white"
+                >
+                    <h2 class="text-sm font-medium opacity-80 mb-3">
+                        Resumo Financeiro
+                    </h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-xs opacity-70">Total em Vendas</p>
+                            <p id="rel-total-vendas" class="text-2xl font-bold">
+                                R$ 0,00
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs opacity-70">
+                                Entregas Concluídas
+                            </p>
+                            <p
+                                id="rel-total-entregas"
+                                class="text-2xl font-bold"
+                            >
+                                0
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Salgados mais vendidos -->
+                <section class="bg-white m-4 rounded-xl shadow-md p-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">
+                        Mais Vendidos
+                    </h2>
+                    <div id="rel-mais-vendidos" class="space-y-3">
+                        <p class="text-gray-500 text-sm">Carregando...</p>
+                    </div>
+                </section>
+
+                <!-- Entregas por dia -->
+                <section class="bg-white m-4 rounded-xl shadow-md p-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">
+                        Entregas por Dia
+                    </h2>
+                    <div id="rel-por-dia" class="space-y-2">
+                        <p class="text-gray-500 text-sm">Carregando...</p>
+                    </div>
+                </section>
+
+                <!-- Alerta de Estoque Baixo -->
+                <section class="bg-white m-4 rounded-xl shadow-md p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-lg font-semibold text-gray-800">
+                            Estoque Baixo
+                        </h2>
+                        <button
+                            onclick="notificarEstoqueBaixo()"
+                            class="bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-600 active:bg-red-700"
+                        >
+                            Avisar Alexa
+                        </button>
+                    </div>
+                    <div id="rel-estoque-baixo" class="space-y-2">
+                        <p class="text-gray-500 text-sm">Carregando...</p>
+                    </div>
+                    <div class="mt-3 pt-3 border-t">
+                        <label class="text-sm text-gray-600"
+                            >Alertar quando estoque menor que:</label
+                        >
+                        <input
+                            type="number"
+                            id="limite-estoque"
+                            value="10"
+                            min="1"
+                            class="w-20 ml-2 px-2 py-1 border border-gray-300 rounded-lg text-center"
+                            onchange="salvarLimiteEstoque(this.value)"
+                        />
                     </div>
                 </section>
             </div>

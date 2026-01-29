@@ -244,6 +244,7 @@ window.showPage = function (page) {
     estoque: "📦 Estoque",
     agenda: "📅 Agenda",
     historico: "📋 Histórico",
+    relatorios: "📊 Relatórios",
     config: "⚙️ Configurações",
   };
   elements.pageTitle.textContent = titulos[page] || "🥟 Simone Salgados";
@@ -254,6 +255,7 @@ window.showPage = function (page) {
   if (page === "estoque") renderEstoque();
   if (page === "home") renderItensDisponiveis();
   if (page === "agenda") carregarAgenda();
+  if (page === "relatorios") carregarRelatorios();
 };
 
 // ==================== AGENDA (PEDIDOS FUTUROS) ====================
@@ -334,6 +336,150 @@ window.carregarAgenda = async function () {
     `;
     })
     .join("");
+};
+
+// ==================== RELATÓRIOS ====================
+
+let periodoAtual = "hoje";
+let limiteEstoque = parseInt(localStorage.getItem("limiteEstoque")) || 10;
+
+async function carregarRelatorios() {
+  // Carrega limite salvo
+  document.getElementById("limite-estoque").value = limiteEstoque;
+
+  await atualizarRelatorio();
+  await carregarEstoqueBaixo();
+}
+
+window.filtrarRelatorio = async function (periodo) {
+  periodoAtual = periodo;
+
+  // Atualiza visual dos botões
+  document.querySelectorAll(".periodo-btn").forEach((btn) => {
+    btn.classList.remove("bg-orange-500", "text-white");
+    btn.classList.add("bg-gray-100", "text-gray-600");
+    if (btn.dataset.periodo === periodo) {
+      btn.classList.remove("bg-gray-100", "text-gray-600");
+      btn.classList.add("bg-orange-500", "text-white");
+    }
+  });
+
+  await atualizarRelatorio();
+};
+
+async function atualizarRelatorio() {
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/relatorios?periodo=${periodoAtual}`,
+    );
+    const data = await response.json();
+
+    // Atualiza resumo financeiro
+    document.getElementById("rel-total-vendas").textContent =
+      `R$ ${data.totalVendas.toFixed(2).replace(".", ",")}`;
+    document.getElementById("rel-total-entregas").textContent =
+      data.totalEntregas;
+
+    // Atualiza mais vendidos
+    const maisVendidosEl = document.getElementById("rel-mais-vendidos");
+    if (data.maisVendidos.length === 0) {
+      maisVendidosEl.innerHTML =
+        '<p class="text-gray-500 text-sm">Nenhuma venda no período</p>';
+    } else {
+      maisVendidosEl.innerHTML = data.maisVendidos
+        .map(
+          (item, index) => `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div class="flex items-center gap-3">
+            <span class="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full font-bold">${index + 1}</span>
+            <span class="font-medium text-gray-800 capitalize">${item.nome}</span>
+          </div>
+          <span class="text-lg font-bold text-orange-500">${item.quantidade}</span>
+        </div>
+      `,
+        )
+        .join("");
+    }
+
+    // Atualiza entregas por dia
+    const porDiaEl = document.getElementById("rel-por-dia");
+    const dias = Object.entries(data.porDia).sort((a, b) =>
+      b[0].localeCompare(a[0]),
+    );
+    if (dias.length === 0) {
+      porDiaEl.innerHTML =
+        '<p class="text-gray-500 text-sm">Nenhuma entrega no período</p>';
+    } else {
+      porDiaEl.innerHTML = dias
+        .map(([data, qtd]) => {
+          const [ano, mes, dia] = data.split("-");
+          return `
+          <div class="flex items-center justify-between p-2 border-b border-gray-100">
+            <span class="text-gray-600">${dia}/${mes}</span>
+            <span class="font-medium text-gray-800">${qtd} entrega${qtd > 1 ? "s" : ""}</span>
+          </div>
+        `;
+        })
+        .join("");
+    }
+  } catch (error) {
+    console.error("Erro ao carregar relatório:", error);
+  }
+}
+
+async function carregarEstoqueBaixo() {
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/estoque-baixo?limite=${limiteEstoque}`,
+    );
+    const data = await response.json();
+
+    const estoqueBaixoEl = document.getElementById("rel-estoque-baixo");
+    if (data.length === 0) {
+      estoqueBaixoEl.innerHTML =
+        '<p class="text-green-600 text-sm font-medium">Todos os itens com estoque OK!</p>';
+    } else {
+      estoqueBaixoEl.innerHTML = data
+        .map(
+          (item) => `
+        <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+          <span class="font-medium text-red-800">${item.nome}</span>
+          <span class="text-lg font-bold text-red-600">${item.quantidade} un</span>
+        </div>
+      `,
+        )
+        .join("");
+    }
+  } catch (error) {
+    console.error("Erro ao carregar estoque baixo:", error);
+  }
+}
+
+window.salvarLimiteEstoque = function (valor) {
+  limiteEstoque = parseInt(valor) || 10;
+  localStorage.setItem("limiteEstoque", limiteEstoque);
+  carregarEstoqueBaixo();
+};
+
+window.notificarEstoqueBaixo = async function () {
+  try {
+    showToast("Enviando notificação...", "info");
+    const response = await fetch(`${API_BASE}/api/notificar-estoque-baixo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ limite: limiteEstoque }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      showToast(data.message, "success");
+    } else {
+      showToast(data.error || "Erro ao notificar", "error");
+    }
+  } catch (error) {
+    showToast("Erro de conexão", "error");
+  }
 };
 
 function formatarDataCompleta(dataStr) {
@@ -963,6 +1109,12 @@ async function handleSubmit(e) {
   setLoading(true);
 
   try {
+    // Prepara itens estruturados para salvar no banco
+    const itensParaSalvar = itensSelecionados.map((item) => ({
+      estoque_id: item.id,
+      quantidade: item.quantidade,
+    }));
+
     const response = await fetch(`${API_BASE}/api/entregas`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -971,6 +1123,7 @@ async function handleSubmit(e) {
         horario,
         descricao: descricaoCompleta,
         antecedencia_minutos: antecedencia,
+        itens: itensParaSalvar,
       }),
     });
 

@@ -4,7 +4,15 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
-const { initDatabase, tokens, usuarios, sessoes } = require("./database");
+const {
+  initDatabase,
+  tokens,
+  usuarios,
+  sessoes,
+  entregas,
+  estoque,
+  itensPedido,
+} = require("./database");
 const authRoutes = require("./routes/auth");
 const {
   router: entregasRoutes,
@@ -118,6 +126,126 @@ app.post("/api/alterar-senha", async (req, res) => {
     res.json({ success: true, message: "Senha alterada com sucesso" });
   } catch (error) {
     res.status(500).json({ error: "Erro ao alterar senha" });
+  }
+});
+
+// Rota de relatórios
+app.get("/api/relatorios", async (req, res) => {
+  try {
+    const { periodo } = req.query; // hoje, semana, mes
+
+    const hoje = new Date();
+    let dataInicio;
+
+    if (periodo === "hoje") {
+      dataInicio = hoje.toISOString().split("T")[0];
+    } else if (periodo === "semana") {
+      const semanaAtras = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
+      dataInicio = semanaAtras.toISOString().split("T")[0];
+    } else {
+      // mes
+      const mesAtras = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000);
+      dataInicio = mesAtras.toISOString().split("T")[0];
+    }
+
+    // Busca entregas concluídas no período
+    const todasEntregas = await entregas.listar();
+    const entregasPeriodo = todasEntregas.filter(
+      (e) => e.status === "concluida" && e.data >= dataInicio,
+    );
+
+    // Conta entregas por dia
+    const porDia = {};
+    entregasPeriodo.forEach((e) => {
+      if (!porDia[e.data]) porDia[e.data] = 0;
+      porDia[e.data]++;
+    });
+
+    // Busca itens de cada entrega e calcula totais
+    const salgadosCount = {};
+    let totalVendas = 0;
+
+    for (const entrega of entregasPeriodo) {
+      const itens = await itensPedido.listarPorEntrega(entrega.id);
+
+      for (const item of itens) {
+        // Conta quantidade por produto
+        const nome = item.nome.toLowerCase();
+        if (!salgadosCount[nome]) salgadosCount[nome] = 0;
+        salgadosCount[nome] += item.quantidade;
+
+        // Calcula valor total
+        totalVendas += item.quantidade * (item.preco_unitario || 0);
+      }
+    }
+
+    // Ordena mais vendidos
+    const maisVendidos = Object.entries(salgadosCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([nome, qtd]) => ({ nome, quantidade: qtd }));
+
+    res.json({
+      totalEntregas: entregasPeriodo.length,
+      totalVendas,
+      porDia,
+      maisVendidos,
+    });
+  } catch (error) {
+    console.error("Erro ao gerar relatório:", error);
+    res.status(500).json({ error: "Erro ao gerar relatório" });
+  }
+});
+
+// Rota de estoque baixo
+app.get("/api/estoque-baixo", async (req, res) => {
+  try {
+    const limite = parseInt(req.query.limite) || 10;
+    const estoqueAtual = await estoque.listar();
+    const baixo = estoqueAtual.filter((i) => i.quantidade <= limite);
+    res.json(baixo);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao verificar estoque" });
+  }
+});
+
+// Rota para notificar estoque baixo via Alexa
+app.post("/api/notificar-estoque-baixo", async (req, res) => {
+  try {
+    const limite = parseInt(req.body.limite) || 10;
+    const estoqueAtual = await estoque.listar();
+    const baixo = estoqueAtual.filter((i) => i.quantidade <= limite);
+
+    if (baixo.length === 0) {
+      return res.json({
+        success: true,
+        message: "Nenhum item com estoque baixo",
+      });
+    }
+
+    const tokenData = await tokens.obter();
+    if (!tokenData || !tokenData.access_token) {
+      return res.status(400).json({ error: "Voice Monkey não configurado" });
+    }
+
+    const [token, device] = tokenData.access_token.split(":");
+
+    const itensTexto = baixo
+      .map((i) => `${i.nome}: ${i.quantidade} unidades`)
+      .join(". ");
+    const texto = `Atenção! Estoque baixo dos seguintes itens: ${itensTexto}`;
+
+    const axios = require("axios");
+    await axios.post("https://api-v2.voicemonkey.io/announcement", {
+      token,
+      device,
+      text: texto,
+    });
+
+    res.json({ success: true, message: "Notificação enviada!" });
+  } catch (error) {
+    console.error("Erro ao notificar estoque baixo:", error);
+    res.status(500).json({ error: "Erro ao enviar notificação" });
   }
 });
 
