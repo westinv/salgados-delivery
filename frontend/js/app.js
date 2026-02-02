@@ -138,7 +138,7 @@ let estoqueItems = [];
 let itensSelecionados = []; // Array de {id, nome, quantidade, maxQtd}
 let filtroAtual = "todos";
 let paginaAtual = "home";
-let embalagemTipo = "nenhuma"; // nenhuma, tapper, isopor
+let embalagemTipo = "nenhuma"; // nenhuma, tupperware, isopor
 let embalagemQtd = 1;
 
 // Inicialização
@@ -936,8 +936,8 @@ window.selecionarEmbalagem = function (tipo) {
   } else {
     detalhes.classList.remove("hidden");
     descInput.placeholder =
-      tipo === "tapper"
-        ? "Qual tapper? (ex: Azul grande)"
+      tipo === "tupperware"
+        ? "Qual tupperware? (ex: Azul grande)"
         : "Qual isopor? (ex: Isopor 5L)";
   }
 
@@ -956,7 +956,7 @@ function getEmbalagemTexto() {
   if (embalagemTipo === "nenhuma") return "";
 
   const descricao = document.getElementById("embalagem-descricao").value.trim();
-  const tipoLabel = embalagemTipo === "tapper" ? "Tapper" : "Isopor";
+  const tipoLabel = embalagemTipo === "tupperware" ? "Tupperware" : "Isopor";
 
   if (descricao) {
     return `[${embalagemQtd}x ${tipoLabel}: ${descricao}]`;
