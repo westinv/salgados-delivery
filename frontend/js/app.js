@@ -528,23 +528,19 @@ async function atualizarRelatorio() {
 
     // Atualiza entregas por dia
     const porDiaEl = document.getElementById("rel-por-dia");
-    const dias = Object.entries(data.porDia).sort((a, b) =>
-      b[0].localeCompare(a[0]),
-    );
-    if (dias.length === 0) {
+    if (data.porDia.length === 0) {
       porDiaEl.innerHTML =
         '<p class="text-gray-500 text-sm">Nenhuma entrega no período</p>';
     } else {
-      porDiaEl.innerHTML = dias
-        .map(([data, qtd]) => {
-          const [ano, mes, dia] = data.split("-");
-          return `
+      porDiaEl.innerHTML = data.porDia
+        .map(
+          (dia) => `
           <div class="flex items-center justify-between p-2 border-b border-gray-100">
-            <span class="text-gray-600">${dia}/${mes}</span>
-            <span class="font-medium text-gray-800">${qtd} entrega${qtd > 1 ? "s" : ""}</span>
+            <span class="text-gray-600">${dia.data}</span>
+            <span class="font-medium text-orange-600">${dia.quantidade} entrega${dia.quantidade > 1 ? "s" : ""}</span>
           </div>
-        `;
-        })
+        `,
+        )
         .join("");
     }
   } catch (error) {
