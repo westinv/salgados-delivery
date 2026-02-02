@@ -132,26 +132,41 @@ app.post("/api/alterar-senha", async (req, res) => {
 // Rota de relatórios
 app.get("/api/relatorios", async (req, res) => {
   try {
-    const { periodo } = req.query; // hoje, semana, mes
+    const { periodo, mes, ano } = req.query; // hoje, semana, mes, mes-especifico
 
     const hoje = new Date();
     let dataInicio;
+    let dataFim;
 
     if (periodo === "hoje") {
       dataInicio = hoje.toISOString().split("T")[0];
+      dataFim = dataInicio;
     } else if (periodo === "semana") {
       const semanaAtras = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
       dataInicio = semanaAtras.toISOString().split("T")[0];
+      dataFim = hoje.toISOString().split("T")[0];
+    } else if (periodo === "mes-especifico" && mes && ano) {
+      // Mês específico selecionado pelo usuário
+      const mesNum = parseInt(mes);
+      const anoNum = parseInt(ano);
+      dataInicio = `${anoNum}-${String(mesNum).padStart(2, "0")}-01`;
+      // Último dia do mês
+      const ultimoDia = new Date(anoNum, mesNum, 0).getDate();
+      dataFim = `${anoNum}-${String(mesNum).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
     } else {
-      // mes
-      const mesAtras = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000);
-      dataInicio = mesAtras.toISOString().split("T")[0];
+      // mes atual (primeiro ao último dia do mês corrente)
+      const mesAtual = hoje.getMonth() + 1;
+      const anoAtual = hoje.getFullYear();
+      dataInicio = `${anoAtual}-${String(mesAtual).padStart(2, "0")}-01`;
+      const ultimoDia = new Date(anoAtual, mesAtual, 0).getDate();
+      dataFim = `${anoAtual}-${String(mesAtual).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
     }
 
     // Busca entregas concluídas no período
     const todasEntregas = await entregas.listar();
     const entregasPeriodo = todasEntregas.filter(
-      (e) => e.status === "concluida" && e.data >= dataInicio,
+      (e) =>
+        e.status === "concluida" && e.data >= dataInicio && e.data <= dataFim,
     );
 
     // Conta entregas por dia
@@ -185,11 +200,26 @@ app.get("/api/relatorios", async (req, res) => {
       .slice(0, 5)
       .map(([nome, qtd]) => ({ nome, quantidade: qtd }));
 
+    // Converte porDia para array ordenado por data
+    const porDiaArray = Object.entries(porDia)
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([data, quantidade]) => ({
+        data: new Date(data + "T12:00:00").toLocaleDateString("pt-BR"),
+        quantidade,
+      }));
+
+    // Busca estoque baixo
+    const estoqueAtual = await estoque.listar();
+    const estoqueBaixo = estoqueAtual
+      .filter((i) => i.quantidade <= 10)
+      .map((i) => ({ nome: i.nome, quantidade: i.quantidade }));
+
     res.json({
       totalEntregas: entregasPeriodo.length,
       totalVendas,
-      porDia,
+      porDia: porDiaArray,
       maisVendidos,
+      estoqueBaixo,
     });
   } catch (error) {
     console.error("Erro ao gerar relatório:", error);

@@ -354,6 +354,9 @@ async function carregarRelatorios() {
 window.filtrarRelatorio = async function (periodo) {
   periodoAtual = periodo;
 
+  // Esconde seletor de mês quando seleciona outro período
+  document.getElementById("seletor-mes").classList.add("hidden");
+
   // Atualiza visual dos botões
   document.querySelectorAll(".periodo-btn").forEach((btn) => {
     btn.classList.remove("bg-orange-500", "text-white");
@@ -365,6 +368,128 @@ window.filtrarRelatorio = async function (periodo) {
   });
 
   await atualizarRelatorio();
+};
+
+// Toggle do seletor de mês
+window.toggleSeletorMes = function () {
+  const seletor = document.getElementById("seletor-mes");
+  const btn = document.getElementById("btn-selecionar-mes");
+
+  seletor.classList.toggle("hidden");
+
+  // Inicializa os selects com mês e ano atual
+  if (!seletor.classList.contains("hidden")) {
+    const hoje = new Date();
+    const mesSelect = document.getElementById("relatorio-mes");
+    const anoSelect = document.getElementById("relatorio-ano");
+
+    // Define mês atual
+    mesSelect.value = hoje.getMonth() + 1;
+
+    // Popula anos (últimos 3 anos)
+    const anoAtual = hoje.getFullYear();
+    anoSelect.innerHTML = "";
+    for (let ano = anoAtual; ano >= anoAtual - 2; ano--) {
+      const option = document.createElement("option");
+      option.value = ano;
+      option.textContent = ano;
+      anoSelect.appendChild(option);
+    }
+  }
+};
+
+// Filtrar relatório por mês específico
+window.filtrarRelatorioPorMes = async function () {
+  const mes = document.getElementById("relatorio-mes").value;
+  const ano = document.getElementById("relatorio-ano").value;
+
+  periodoAtual = `mes-especifico`;
+
+  // Atualiza visual dos botões
+  document.querySelectorAll(".periodo-btn").forEach((btn) => {
+    btn.classList.remove("bg-orange-500", "text-white");
+    btn.classList.add("bg-gray-100", "text-gray-600");
+  });
+  document
+    .getElementById("btn-selecionar-mes")
+    .classList.remove("bg-gray-100", "text-gray-600");
+  document
+    .getElementById("btn-selecionar-mes")
+    .classList.add("bg-orange-500", "text-white");
+
+  // Busca relatório com mês e ano específicos
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/relatorios?periodo=mes-especifico&mes=${mes}&ano=${ano}`,
+    );
+    const data = await response.json();
+
+    // Atualiza resumo financeiro
+    document.getElementById("rel-total-vendas").textContent =
+      `R$ ${data.totalVendas.toFixed(2).replace(".", ",")}`;
+    document.getElementById("rel-total-entregas").textContent =
+      data.totalEntregas;
+
+    // Atualiza mais vendidos
+    const maisVendidosEl = document.getElementById("rel-mais-vendidos");
+    if (data.maisVendidos.length === 0) {
+      maisVendidosEl.innerHTML =
+        '<p class="text-gray-500 text-sm">Nenhuma venda no período</p>';
+    } else {
+      maisVendidosEl.innerHTML = data.maisVendidos
+        .map(
+          (item, index) => `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div class="flex items-center gap-3">
+            <span class="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full font-bold">${index + 1}</span>
+            <span class="font-medium">${item.nome}</span>
+          </div>
+          <span class="text-gray-600">${item.quantidade} un</span>
+        </div>
+      `,
+        )
+        .join("");
+    }
+
+    // Atualiza entregas por dia
+    const porDiaEl = document.getElementById("rel-por-dia");
+    if (data.porDia.length === 0) {
+      porDiaEl.innerHTML =
+        '<p class="text-gray-500 text-sm">Nenhuma entrega no período</p>';
+    } else {
+      porDiaEl.innerHTML = data.porDia
+        .map(
+          (dia) => `
+        <div class="flex items-center justify-between p-2 border-b border-gray-100">
+          <span class="text-gray-600">${dia.data}</span>
+          <span class="font-medium text-orange-600">${dia.quantidade} entregas</span>
+        </div>
+      `,
+        )
+        .join("");
+    }
+
+    // Atualiza estoque baixo
+    const estoqueBaixoEl = document.getElementById("rel-estoque-baixo");
+    if (data.estoqueBaixo.length === 0) {
+      estoqueBaixoEl.innerHTML =
+        '<p class="text-green-600 text-sm">Estoque OK!</p>';
+    } else {
+      estoqueBaixoEl.innerHTML = data.estoqueBaixo
+        .map(
+          (item) => `
+        <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+          <span class="font-medium text-red-700">${item.nome}</span>
+          <span class="text-red-600 font-bold">${item.quantidade} un</span>
+        </div>
+      `,
+        )
+        .join("");
+    }
+  } catch (error) {
+    console.error("Erro ao carregar relatório:", error);
+    showToast("Erro ao carregar relatório", "error");
+  }
 };
 
 async function atualizarRelatorio() {
@@ -738,8 +863,10 @@ function renderItensSelecionados() {
           inputmode="numeric"
           min="1"
           max="${item.maxQtd}"
-          value="${item.quantidade}"
+          value="${item.quantidade || ""}"
+          placeholder="1"
           onchange="atualizarQtd(${index}, this.value)"
+          onfocus="this.select()"
           class="w-20 px-3 py-2 text-center text-lg font-bold border-2 border-orange-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
         />
         <button type="button" onclick="removerItemSelecionado(${index})" class="w-10 h-10 text-red-500 hover:bg-red-50 active:bg-red-100 rounded-full flex items-center justify-center btn-touch">
@@ -760,7 +887,7 @@ window.selecionarItem = function (id) {
   itensSelecionados.push({
     id: item.id,
     nome: item.nome,
-    quantidade: 1,
+    quantidade: 0,
     maxQtd: item.quantidade,
   });
 
@@ -774,9 +901,8 @@ window.removerItemSelecionado = function (index) {
 
 window.atualizarQtd = function (index, valor) {
   const item = itensSelecionados[index];
-  let qtd = parseInt(valor) || 1;
+  let qtd = parseInt(valor) || 0;
 
-  if (qtd < 1) qtd = 1;
   if (qtd > item.maxQtd) {
     qtd = item.maxQtd;
     showToast(`Máximo disponível: ${item.maxQtd}`, "warning");
@@ -1090,6 +1216,13 @@ async function handleSubmit(e) {
       return;
     }
   }
+
+  // Normaliza quantidade (0 ou vazio vira 1)
+  itensSelecionados.forEach((item) => {
+    if (!item.quantidade || item.quantidade < 1) {
+      item.quantidade = 1;
+    }
+  });
 
   // Monta descrição com itens e embalagem
   let descricaoCompleta = descricao;
