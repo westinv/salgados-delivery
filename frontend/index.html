@@ -43,6 +43,14 @@
                 -webkit-user-select: auto;
                 user-select: auto;
                 font-size: 16px !important; /* Previne zoom no iOS */
+                -webkit-appearance: none;
+                appearance: none;
+            }
+            input[type="date"],
+            input[type="time"] {
+                width: 100% !important;
+                min-width: 100% !important;
+                box-sizing: border-box !important;
             }
             .safe-top {
                 padding-top: env(safe-area-inset-top);
@@ -415,6 +423,7 @@
                                 type="date"
                                 id="data"
                                 required
+                                style="width: 100%; display: block"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
                             />
                         </div>
@@ -427,6 +436,7 @@
                                 type="time"
                                 id="horario"
                                 required
+                                style="width: 100%; display: block"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
                             />
                         </div>
