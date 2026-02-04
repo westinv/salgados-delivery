@@ -312,7 +312,7 @@ window.carregarAgenda = async function () {
           ${entregasDoDia
             .map(
               (entrega) => `
-            <div class="p-4 flex items-start gap-4">
+            <div class="p-4 flex items-start gap-4 cursor-pointer hover:bg-gray-50 transition-colors" onclick="abrirModalEditar(${entrega.id})">
               <div class="flex-shrink-0 w-16 text-center">
                 <p class="text-2xl font-bold text-orange-500">${entrega.horario.substring(0, 5)}</p>
               </div>
@@ -321,7 +321,7 @@ window.carregarAgenda = async function () {
                 <p class="text-xs text-gray-400 mt-1">Aviso ${entrega.antecedencia_minutos} min antes</p>
               </div>
               <div class="flex-shrink-0 flex gap-1">
-                <button onclick="concluirEntrega(${entrega.id})" class="p-2 text-green-500 hover:bg-green-50 rounded-lg">
+                <button onclick="event.stopPropagation(); concluirEntrega(${entrega.id})" class="p-2 text-green-500 hover:bg-green-50 rounded-lg">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                   </svg>
@@ -801,6 +801,61 @@ window.removerProduto = async function (id) {
   }
 };
 
+// ==================== PRESET: CENTO DE SALGADOS ====================
+
+window.aplicarPresetCento = function () {
+  // Verifica se há pelo menos 4 tipos de salgados no estoque
+  const itensComEstoque = estoqueItems.filter((item) => item.quantidade >= 25);
+
+  if (itensComEstoque.length < 4) {
+    // Mostra quais itens têm estoque insuficiente
+    const itensInsuficientes = estoqueItems
+      .filter((item) => item.quantidade < 25)
+      .map((item) => `${item.nome}: ${item.quantidade} un`)
+      .join("\n");
+
+    showToast(
+      "Estoque insuficiente para o Cento! Precisa de pelo menos 25 de 4 tipos.",
+      "error",
+    );
+
+    if (itensInsuficientes) {
+      setTimeout(() => {
+        showToast("Verifique o estoque dos produtos", "warning");
+      }, 2000);
+    }
+    return;
+  }
+
+  // Limpa seleção atual
+  itensSelecionados = [];
+
+  // Pega os 4 primeiros itens com estoque suficiente
+  const itensSelecionadosPreset = itensComEstoque.slice(0, 4);
+
+  // Adiciona 25 de cada
+  itensSelecionadosPreset.forEach((item) => {
+    itensSelecionados.push({
+      id: item.id,
+      nome: item.nome,
+      quantidade: 25,
+      maxQtd: item.quantidade,
+    });
+  });
+
+  // Atualiza a interface
+  renderItensDisponiveis();
+
+  // Feedback visual e sonoro
+  showToast("Cento aplicado! 25 de cada tipo adicionado.", "success");
+
+  // Scroll suave para os itens selecionados
+  const itensEl = document.getElementById("itens-selecionados");
+  if (itensEl) {
+    itensEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+};
+
 // ==================== ITENS DO PEDIDO (CHIPS) ====================
 
 function renderItensDisponiveis() {
@@ -1084,7 +1139,7 @@ function renderEntregas() {
     .map((entrega) => {
       const dataFormatada = formatarData(entrega.data);
       return `
-      <div class="bg-white rounded-xl p-4 shadow-md card-touch">
+      <div class="bg-white rounded-xl p-4 shadow-md card-touch cursor-pointer hover:shadow-lg transition-shadow" onclick="abrirModalEditar(${entrega.id})">
         <div class="flex items-start justify-between">
           <div class="flex-1">
             <p class="font-semibold text-gray-800 text-lg">${escapeHtml(entrega.descricao)}</p>
@@ -1092,12 +1147,12 @@ function renderEntregas() {
             <p class="text-xs text-gray-400 mt-1">⏰ Aviso ${entrega.antecedencia_minutos} min antes</p>
           </div>
           <div class="flex gap-1 ml-2">
-            <button onclick="concluirEntrega(${entrega.id})" class="p-3 text-green-500 hover:bg-green-50 active:bg-green-100 rounded-xl btn-touch" title="Concluir">
+            <button onclick="event.stopPropagation(); concluirEntrega(${entrega.id})" class="p-3 text-green-500 hover:bg-green-50 active:bg-green-100 rounded-xl btn-touch" title="Concluir">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
               </svg>
             </button>
-            <button onclick="removerEntrega(${entrega.id})" class="p-3 text-red-500 hover:bg-red-50 active:bg-red-100 rounded-xl btn-touch" title="Remover">
+            <button onclick="event.stopPropagation(); removerEntrega(${entrega.id})" class="p-3 text-red-500 hover:bg-red-50 active:bg-red-100 rounded-xl btn-touch" title="Remover">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
               </svg>
@@ -1154,7 +1209,7 @@ function renderHistorico() {
       }
 
       return `
-      <div class="bg-white rounded-xl p-4 shadow-md card-touch ${cardClass}">
+      <div class="bg-white rounded-xl p-4 shadow-md card-touch cursor-pointer hover:shadow-lg transition-shadow ${cardClass}" onclick="abrirModalEditar(${entrega.id})">
         <div class="flex items-start justify-between">
           <div class="flex-1">
             <div class="flex items-center gap-2 mb-2">
@@ -1167,7 +1222,7 @@ function renderHistorico() {
           ${
             !isConcluida
               ? `
-            <button onclick="concluirEntrega(${entrega.id})" class="p-3 ${isAtencao ? "text-red-500 bg-red-50" : "text-green-500"} hover:bg-green-50 active:bg-green-100 rounded-xl btn-touch">
+            <button onclick="event.stopPropagation(); concluirEntrega(${entrega.id})" class="p-3 ${isAtencao ? "text-red-500 bg-red-50" : "text-green-500"} hover:bg-green-50 active:bg-green-100 rounded-xl btn-touch">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
               </svg>
@@ -1360,3 +1415,348 @@ function registerServiceWorker() {
       .catch((err) => console.log("SW error:", err));
   }
 }
+
+// ==================== MODAL DE EDIÇÃO ====================
+
+let entregaEditandoId = null;
+let itensModalEditando = []; // Itens sendo editados no modal
+
+window.abrirModalEditar = async function (id) {
+  const entrega = entregas.find((e) => e.id === id);
+  if (!entrega) {
+    showToast("Entrega não encontrada", "error");
+    return;
+  }
+
+  entregaEditandoId = id;
+
+  // Preenche campos do modal
+  document.getElementById("modal-data").value = entrega.data;
+  document.getElementById("modal-horario").value = entrega.horario;
+  document.getElementById("modal-descricao").value = entrega.descricao;
+  document.getElementById("modal-antecedencia").value =
+    entrega.antecedencia_minutos || 30;
+
+  // Busca detalhes da entrega com itens
+  try {
+    const response = await fetch(`${API_BASE}/api/entregas/${id}`);
+    const entregaCompleta = await response.json();
+
+    // Carrega itens do pedido
+    itensModalEditando = (entregaCompleta.itens || []).map((item) => ({
+      estoque_id: item.estoque_id,
+      nome: item.nome,
+      quantidade: item.quantidade,
+      preco_unitario: item.preco_unitario || 0,
+    }));
+  } catch (error) {
+    console.error("Erro ao buscar itens:", error);
+    itensModalEditando = [];
+  }
+
+  renderItensModal();
+
+  // Atualiza título e badge de status
+  const isConcluida = entrega.status === "concluida";
+  const isAtencao = entrega.status === "atencao";
+
+  let statusHtml = "";
+  let titulo = "Editar Entrega";
+
+  if (isConcluida) {
+    statusHtml =
+      '<span class="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium">Entrega Concluída</span>';
+    titulo = "Detalhes da Entrega";
+  } else if (isAtencao) {
+    statusHtml =
+      '<span class="inline-block px-4 py-2 bg-red-100 text-red-700 rounded-full text-sm font-medium">Atenção - Passou 2h!</span>';
+    titulo = "Detalhes da Entrega";
+  } else {
+    statusHtml =
+      '<span class="inline-block px-4 py-2 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">Agendada</span>';
+  }
+
+  document.getElementById("modal-status-badge").innerHTML = statusHtml;
+  document.getElementById("modal-titulo").textContent = titulo;
+
+  // Mostra/esconde botão de salvar baseado no status
+  const btnSalvar = document.getElementById("btn-salvar-edicao");
+  if (isConcluida || isAtencao) {
+    btnSalvar.classList.add("hidden");
+  } else {
+    btnSalvar.classList.remove("hidden");
+  }
+
+  // Info de criação
+  if (entrega.created_at) {
+    const dataCriacao = new Date(entrega.created_at);
+    document.getElementById("modal-info-criacao").textContent =
+      `Criado em: ${dataCriacao.toLocaleDateString("pt-BR")} às ${dataCriacao.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+  } else {
+    document.getElementById("modal-info-criacao").textContent = "";
+  }
+
+  // Mostra o modal
+  document.getElementById("modal-editar").classList.remove("hidden");
+};
+
+window.fecharModalEditar = function () {
+  document.getElementById("modal-editar").classList.add("hidden");
+  entregaEditandoId = null;
+  itensModalEditando = [];
+  document.getElementById("modal-adicionar-item").classList.add("hidden");
+};
+
+// Renderiza lista de itens no modal
+function renderItensModal() {
+  const lista = document.getElementById("modal-itens-lista");
+
+  if (itensModalEditando.length === 0) {
+    lista.innerHTML =
+      '<p class="text-sm text-gray-400 text-center py-2">Nenhum item adicionado</p>';
+    return;
+  }
+
+  lista.innerHTML = itensModalEditando
+    .map(
+      (item, index) => `
+      <div class="flex items-center gap-3 bg-orange-50 border-2 border-orange-200 rounded-xl p-3">
+        <div class="flex-1">
+          <p class="font-medium text-gray-800">${escapeHtml(item.nome)}</p>
+          <p class="text-xs text-gray-500">R$ ${(item.preco_unitario || 0).toFixed(2)} /un</p>
+        </div>
+        <input
+          type="number"
+          inputmode="numeric"
+          min="1"
+          value="${item.quantidade}"
+          onchange="atualizarQtdModal(${index}, this.value)"
+          onfocus="this.select()"
+          class="w-20 px-3 py-2 text-center text-lg font-bold border-2 border-orange-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+        />
+        <button type="button" onclick="removerItemModal(${index})" class="w-10 h-10 text-red-500 hover:bg-red-50 active:bg-red-100 rounded-full flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    `,
+    )
+    .join("");
+}
+
+// Renderiza itens disponíveis para adicionar
+function renderItensDisponiveisModal() {
+  const container = document.getElementById("modal-itens-disponiveis");
+
+  // Filtra itens que ainda não estão no pedido
+  const disponiveis = estoqueItems.filter(
+    (item) =>
+      !itensModalEditando.find((i) => i.estoque_id === item.id) &&
+      item.quantidade > 0,
+  );
+
+  if (disponiveis.length === 0) {
+    container.innerHTML =
+      '<p class="text-sm text-gray-400">Todos os itens já foram adicionados</p>';
+    return;
+  }
+
+  container.innerHTML = disponiveis
+    .map(
+      (item) => `
+      <button
+        type="button"
+        onclick="adicionarItemModal(${item.id})"
+        class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-orange-100 active:bg-orange-200 rounded-full text-sm font-medium text-gray-700 transition-colors"
+      >
+        <span>${escapeHtml(item.nome)}</span>
+        <span class="text-xs text-gray-500">(${item.quantidade})</span>
+      </button>
+    `,
+    )
+    .join("");
+}
+
+window.toggleAdicionarItemModal = function () {
+  const container = document.getElementById("modal-adicionar-item");
+  const isHidden = container.classList.contains("hidden");
+
+  if (isHidden) {
+    renderItensDisponiveisModal();
+    container.classList.remove("hidden");
+  } else {
+    container.classList.add("hidden");
+  }
+};
+
+window.adicionarItemModal = function (estoqueId) {
+  const item = estoqueItems.find((e) => e.id === estoqueId);
+  if (!item) return;
+
+  itensModalEditando.push({
+    estoque_id: item.id,
+    nome: item.nome,
+    quantidade: 1,
+    preco_unitario: item.preco_unitario || 0,
+  });
+
+  renderItensModal();
+  renderItensDisponiveisModal();
+};
+
+window.removerItemModal = function (index) {
+  itensModalEditando.splice(index, 1);
+  renderItensModal();
+  renderItensDisponiveisModal();
+};
+
+window.atualizarQtdModal = function (index, valor) {
+  const qtd = parseInt(valor) || 1;
+  if (qtd < 1) {
+    itensModalEditando[index].quantidade = 1;
+  } else {
+    itensModalEditando[index].quantidade = qtd;
+  }
+  renderItensModal();
+};
+
+window.salvarEdicao = async function () {
+  if (!entregaEditandoId) {
+    showToast("Nenhuma entrega selecionada", "error");
+    return;
+  }
+
+  const data = document.getElementById("modal-data").value;
+  const horario = document.getElementById("modal-horario").value;
+  let descricaoBase = document.getElementById("modal-descricao").value.trim();
+  const antecedencia = parseInt(
+    document.getElementById("modal-antecedencia").value,
+  );
+
+  if (!data || !horario || !descricaoBase) {
+    showToast("Preencha todos os campos", "error");
+    return;
+  }
+
+  // Valida data/hora futura
+  const dataHora = new Date(`${data}T${horario}`);
+  if (dataHora <= new Date()) {
+    showToast("A data/hora deve ser no futuro", "error");
+    return;
+  }
+
+  // Monta descrição com itens
+  let descricaoCompleta = descricaoBase;
+
+  // Remove itens antigos da descrição (formato: "50x Coxinha, 30x Risole - ")
+  // Mantém só a parte após o último " - " que é o nome do cliente
+  const partes = descricaoBase.split(" - ");
+  if (partes.length > 1) {
+    // Verifica se a primeira parte parece ser lista de itens (contém "x ")
+    if (partes[0].includes("x ")) {
+      descricaoBase = partes.slice(1).join(" - ");
+    }
+  }
+
+  // Remove embalagem antiga [...]
+  descricaoBase = descricaoBase.replace(/\s*\[.*?\]\s*/g, "").trim();
+
+  // Adiciona itens na frente se houver
+  if (itensModalEditando.length > 0) {
+    const itensTexto = itensModalEditando
+      .map((i) => `${i.quantidade}x ${i.nome}`)
+      .join(", ");
+    descricaoCompleta = `${itensTexto} - ${descricaoBase}`;
+  } else {
+    descricaoCompleta = descricaoBase;
+  }
+
+  // Prepara itens para enviar
+  const itensParaSalvar = itensModalEditando.map((item) => ({
+    estoque_id: item.estoque_id,
+    quantidade: item.quantidade,
+  }));
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/entregas/${entregaEditandoId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data,
+          horario,
+          descricao: descricaoCompleta,
+          antecedencia_minutos: antecedencia,
+          itens: itensParaSalvar,
+        }),
+      },
+    );
+
+    const result = await response.json();
+
+    if (response.ok) {
+      showToast("Entrega atualizada!", "success");
+      fecharModalEditar();
+      await carregarEstoque();
+      await carregarEntregas();
+    } else {
+      showToast(result.error || "Erro ao atualizar", "error");
+    }
+  } catch (error) {
+    showToast("Erro de conexão", "error");
+  }
+};
+
+window.duplicarPedido = function () {
+  if (!entregaEditandoId) {
+    showToast("Nenhuma entrega selecionada", "error");
+    return;
+  }
+
+  const entrega = entregas.find((e) => e.id === entregaEditandoId);
+  if (!entrega) {
+    showToast("Entrega não encontrada", "error");
+    return;
+  }
+
+  // Fecha o modal
+  fecharModalEditar();
+
+  // Vai para a página home
+  showPage("home");
+
+  // Preenche o formulário principal com dados do pedido
+  // Define data para hoje ou mantém se for futura
+  const hoje = new Date().toISOString().split("T")[0];
+  const dataEntrega = entrega.data >= hoje ? entrega.data : hoje;
+
+  elements.data.value = dataEntrega;
+  elements.horario.value = entrega.horario;
+
+  // Extrai só a descrição do cliente (remove itens se houver)
+  // Formato típico: "50x Coxinha, 30x Risole - João Silva [1x Tupperware]"
+  let descricaoLimpa = entrega.descricao;
+
+  // Tenta extrair só o nome do cliente (após o " - ")
+  const partes = descricaoLimpa.split(" - ");
+  if (partes.length > 1) {
+    descricaoLimpa = partes[partes.length - 1];
+  }
+
+  // Remove info de embalagem [...]
+  descricaoLimpa = descricaoLimpa.replace(/\s*\[.*?\]\s*/g, "").trim();
+
+  elements.descricao.value = descricaoLimpa;
+  elements.antecedencia.value = entrega.antecedencia_minutos || 30;
+
+  // Limpa itens selecionados (usuário vai selecionar novamente)
+  itensSelecionados = [];
+  renderItensDisponiveis();
+
+  // Reseta embalagem
+  resetEmbalagem();
+
+  showToast("Dados copiados! Ajuste o pedido e salve.", "info");
+};

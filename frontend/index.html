@@ -414,42 +414,47 @@
                         Nova Entrega
                     </h2>
                     <form id="form-entrega" class="space-y-5">
+                        <!-- 1. CLIENTE (primeiro!) -->
                         <div>
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-2"
-                                >Data</label
+                                >Quem é o cliente?</label
                             >
                             <input
-                                type="date"
-                                id="data"
+                                type="text"
+                                id="descricao"
                                 required
-                                style="width: 100%; display: block"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
-                            />
-                        </div>
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-700 mb-2"
-                                >Horário</label
-                            >
-                            <input
-                                type="time"
-                                id="horario"
-                                required
-                                style="width: 100%; display: block"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                                maxlength="200"
+                                placeholder="Ex: Maria - Festa de aniversário"
+                                class="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-lg"
                             />
                         </div>
 
-                        <!-- Itens do pedido (chips selecionáveis) -->
+                        <!-- 2. PRESET: Cento de Salgados -->
                         <div>
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-2"
-                                >Itens do Pedido</label
+                                >O que vai levar?</label
                             >
-                            <p class="text-xs text-gray-500 mb-3">
-                                Toque para selecionar, depois informe a
-                                quantidade
+                            <button
+                                type="button"
+                                onclick="aplicarPresetCento()"
+                                class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-6 rounded-2xl font-bold text-lg shadow-lg hover:from-purple-600 hover:to-pink-600 active:from-purple-700 active:to-pink-700 btn-touch flex items-center justify-center gap-3 transition-all mb-4"
+                            >
+                                <span class="text-3xl">🎯</span>
+                                <div class="text-left">
+                                    <p class="text-lg font-bold">
+                                        Cento de Salgados
+                                    </p>
+                                    <p class="text-xs opacity-90">
+                                        25 de cada tipo (100 no total)
+                                    </p>
+                                </div>
+                            </button>
+
+                            <!-- Ou selecionar manualmente -->
+                            <p class="text-xs text-gray-500 mb-3 text-center">
+                                — ou escolha os itens manualmente —
                             </p>
                             <div
                                 id="itens-disponiveis"
@@ -461,40 +466,7 @@
                             ></div>
                         </div>
 
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-700 mb-2"
-                                >Cliente / Observação</label
-                            >
-                            <input
-                                type="text"
-                                id="descricao"
-                                required
-                                maxlength="200"
-                                placeholder="Ex: João - Festa de aniversário"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                            />
-                        </div>
-
-                        <div>
-                            <label
-                                class="block text-sm font-medium text-gray-700 mb-2"
-                                >Avisar com antecedência de</label
-                            >
-                            <select
-                                id="antecedencia"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
-                            >
-                                <option value="5">5 minutos</option>
-                                <option value="15">15 minutos</option>
-                                <option value="30" selected>30 minutos</option>
-                                <option value="45">45 minutos</option>
-                                <option value="60">1 hora</option>
-                                <option value="120">2 horas</option>
-                            </select>
-                        </div>
-
-                        <!-- Embalagem -->
+                        <!-- 3. Embalagem -->
                         <div>
                             <label
                                 class="block text-sm font-medium text-gray-700 mb-2"
@@ -563,6 +535,62 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- 4. Data e Horário -->
+                        <div class="bg-gray-50 rounded-xl p-4 space-y-4">
+                            <label
+                                class="block text-sm font-medium text-gray-700"
+                            >
+                                Quando entregar?
+                            </label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label
+                                        class="block text-xs text-gray-500 mb-1"
+                                        >Data</label
+                                    >
+                                    <input
+                                        type="date"
+                                        id="data"
+                                        required
+                                        style="width: 100%; display: block"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-xs text-gray-500 mb-1"
+                                        >Horário</label
+                                    >
+                                    <input
+                                        type="time"
+                                        id="horario"
+                                        required
+                                        style="width: 100%; display: block"
+                                        class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Antecedência -->
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                                >Avisar com antecedência de</label
+                            >
+                            <select
+                                id="antecedencia"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+                            >
+                                <option value="5">5 minutos</option>
+                                <option value="15">15 minutos</option>
+                                <option value="30" selected>30 minutos</option>
+                                <option value="45">45 minutos</option>
+                                <option value="60">1 hora</option>
+                                <option value="120">2 horas</option>
+                            </select>
                         </div>
 
                         <button
@@ -1071,6 +1099,218 @@
             <footer class="text-center text-gray-400 text-xs p-4 safe-bottom">
                 <p>A Alexa vai te avisar em voz alta!</p>
             </footer>
+        </div>
+
+        <!-- Modal de Edição de Entrega -->
+        <div
+            id="modal-editar"
+            class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+            <!-- Overlay -->
+            <div
+                class="absolute inset-0 bg-black bg-opacity-50"
+                onclick="fecharModalEditar()"
+            ></div>
+
+            <!-- Conteúdo do Modal -->
+            <div
+                class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            >
+                <!-- Header do Modal -->
+                <div
+                    class="sticky top-0 bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-t-2xl flex items-center justify-between"
+                >
+                    <h2 id="modal-titulo" class="text-lg font-bold">
+                        Editar Entrega
+                    </h2>
+                    <button
+                        onclick="fecharModalEditar()"
+                        class="p-2 hover:bg-orange-600 rounded-lg"
+                    >
+                        <svg
+                            class="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            ></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Corpo do Modal -->
+                <div class="p-4 space-y-4">
+                    <!-- Status Badge -->
+                    <div id="modal-status-badge" class="text-center"></div>
+
+                    <!-- Data -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                            >Data</label
+                        >
+                        <input
+                            type="date"
+                            id="modal-data"
+                            required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                        />
+                    </div>
+
+                    <!-- Horário -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                            >Horário</label
+                        >
+                        <input
+                            type="time"
+                            id="modal-horario"
+                            required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                        />
+                    </div>
+
+                    <!-- Descrição -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                            >Cliente / Descrição</label
+                        >
+                        <input
+                            type="text"
+                            id="modal-descricao"
+                            required
+                            maxlength="200"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                    </div>
+
+                    <!-- Itens do Pedido -->
+                    <div id="modal-itens-container">
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                            Itens do Pedido
+                        </label>
+                        <p class="text-xs text-gray-500 mb-3">
+                            Ajuste as quantidades ou adicione novos itens
+                        </p>
+
+                        <!-- Itens existentes -->
+                        <div
+                            id="modal-itens-lista"
+                            class="space-y-3 mb-3"
+                        ></div>
+
+                        <!-- Adicionar novo item -->
+                        <div id="modal-adicionar-item" class="hidden">
+                            <p class="text-xs text-gray-500 mb-2">
+                                Adicionar item:
+                            </p>
+                            <div
+                                id="modal-itens-disponiveis"
+                                class="flex flex-wrap gap-2"
+                            ></div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onclick="toggleAdicionarItemModal()"
+                            id="btn-toggle-adicionar"
+                            class="w-full py-2 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 text-sm hover:border-orange-400 hover:text-orange-500 transition-colors"
+                        >
+                            + Adicionar Item
+                        </button>
+                    </div>
+
+                    <!-- Antecedência -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                            >Avisar com antecedência de</label
+                        >
+                        <select
+                            id="modal-antecedencia"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+                        >
+                            <option value="5">5 minutos</option>
+                            <option value="15">15 minutos</option>
+                            <option value="30">30 minutos</option>
+                            <option value="45">45 minutos</option>
+                            <option value="60">1 hora</option>
+                            <option value="120">2 horas</option>
+                        </select>
+                    </div>
+
+                    <!-- Info de criação -->
+                    <div
+                        id="modal-info-criacao"
+                        class="text-xs text-gray-400 text-center"
+                    ></div>
+                </div>
+
+                <!-- Footer com botões -->
+                <div
+                    class="sticky bottom-0 bg-gray-50 p-4 rounded-b-2xl border-t space-y-2"
+                >
+                    <!-- Botão Salvar (só aparece para entregas agendadas) -->
+                    <button
+                        id="btn-salvar-edicao"
+                        onclick="salvarEdicao()"
+                        class="w-full bg-orange-500 text-white py-4 rounded-xl font-semibold hover:bg-orange-600 active:bg-orange-700 btn-touch flex items-center justify-center gap-2"
+                    >
+                        <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M5 13l4 4L19 7"
+                            ></path>
+                        </svg>
+                        <span>Salvar Alterações</span>
+                    </button>
+
+                    <!-- Botão Duplicar/Usar como Base -->
+                    <button
+                        onclick="duplicarPedido()"
+                        class="w-full bg-blue-500 text-white py-4 rounded-xl font-semibold hover:bg-blue-600 active:bg-blue-700 btn-touch flex items-center justify-center gap-2"
+                    >
+                        <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                            ></path>
+                        </svg>
+                        <span>Usar como Base (Novo Pedido)</span>
+                    </button>
+
+                    <!-- Botão Cancelar -->
+                    <button
+                        onclick="fecharModalEditar()"
+                        class="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-300 active:bg-gray-400 btn-touch"
+                    >
+                        Cancelar
+                    </button>
+                </div>
+            </div>
         </div>
 
         <script src="js/app.js"></script>

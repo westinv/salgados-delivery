@@ -161,14 +161,21 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/entregas/:id - Busca entrega por ID
+// GET /api/entregas/:id - Busca entrega por ID com itens
 router.get("/:id", async (req, res) => {
   try {
     const entrega = await entregas.buscarPorId(req.params.id);
     if (!entrega) {
       return res.status(404).json({ error: "Entrega não encontrada" });
     }
-    res.json(entrega);
+
+    // Busca itens do pedido
+    const itens = await itensPedido.listarPorEntrega(req.params.id);
+
+    res.json({
+      ...entrega,
+      itens: itens || [],
+    });
   } catch (error) {
     console.error("Erro ao buscar entrega:", error);
     res.status(500).json({ error: "Erro ao buscar entrega" });
@@ -283,6 +290,92 @@ router.post("/:id/concluir", async (req, res) => {
   } catch (error) {
     console.error("Erro ao concluir entrega:", error);
     res.status(500).json({ error: "Erro ao concluir entrega" });
+  }
+});
+
+// PUT /api/entregas/:id - Atualiza entrega existente
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, horario, descricao, antecedencia_minutos, itens } = req.body;
+
+    const entregaExistente = await entregas.buscarPorId(id);
+    if (!entregaExistente) {
+      return res.status(404).json({ error: "Entrega não encontrada" });
+    }
+
+    // Valida campos obrigatórios
+    if (!data || !horario || !descricao) {
+      return res.status(400).json({
+        error: "Campos obrigatórios: data, horario, descricao",
+      });
+    }
+
+    // Se a entrega ainda está agendada, valida data/hora futura
+    if (entregaExistente.status === "agendada") {
+      const dataHoraEntrega = new Date(`${data}T${horario}:00-03:00`);
+      const agora = new Date();
+      const cincoMinutos = 5 * 60 * 1000;
+
+      if (dataHoraEntrega.getTime() <= agora.getTime() + cincoMinutos) {
+        return res.status(400).json({
+          error:
+            "A entrega deve ser agendada com pelo menos 5 minutos de antecedência",
+        });
+      }
+    }
+
+    // Cancela agendamento antigo
+    cancelarAgendamento(parseInt(id));
+
+    // Atualiza a entrega no banco
+    await entregas.atualizar(id, {
+      data,
+      horario,
+      descricao,
+      antecedencia_minutos: antecedencia_minutos || 30,
+      alexa_reminder_id: entregaExistente.alexa_reminder_id,
+      status: entregaExistente.status,
+    });
+
+    // Atualiza itens do pedido se foram enviados
+    if (itens && Array.isArray(itens)) {
+      // Remove itens antigos
+      await itensPedido.removerPorEntrega(id);
+
+      // Adiciona novos itens
+      for (const item of itens) {
+        if (item.estoque_id && item.quantidade > 0) {
+          await itensPedido.adicionar(id, item.estoque_id, item.quantidade);
+        }
+      }
+    }
+
+    // Reagenda notificação se ainda está agendada
+    const tokenData = await tokens.obter();
+    const voiceMonkeyConfigurado = !!tokenData?.access_token;
+
+    if (entregaExistente.status === "agendada" && voiceMonkeyConfigurado) {
+      agendarNotificacao({
+        id: parseInt(id),
+        data,
+        horario,
+        descricao,
+        antecedencia_minutos: antecedencia_minutos || 30,
+      });
+    }
+
+    // Busca entrega atualizada
+    const entregaAtualizada = await entregas.buscarPorId(id);
+
+    res.json({
+      success: true,
+      entrega: entregaAtualizada,
+      message: "Entrega atualizada com sucesso",
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar entrega:", error);
+    res.status(500).json({ error: "Erro ao atualizar entrega" });
   }
 });
 
