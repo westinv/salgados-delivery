@@ -535,9 +535,14 @@ async function atualizarRelatorio() {
       porDiaEl.innerHTML = data.porDia
         .map(
           (dia) => `
-          <div class="flex items-center justify-between p-2 border-b border-gray-100">
+          <div onclick="abrirModalDia('${dia.dataOriginal || dia.data}')" class="flex items-center justify-between p-3 border-b border-gray-100 cursor-pointer hover:bg-orange-50 rounded-lg transition-colors">
             <span class="text-gray-600">${dia.data}</span>
-            <span class="font-medium text-orange-600">${dia.quantidade} entrega${dia.quantidade > 1 ? "s" : ""}</span>
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-orange-600">${dia.quantidade} entrega${dia.quantidade > 1 ? "s" : ""}</span>
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+              </svg>
+            </div>
           </div>
         `,
         )
@@ -1275,7 +1280,7 @@ async function handleSubmit(e) {
     }
   });
 
-  // Monta descrição com itens e embalagem
+  // Monta descrição com itens (sem embalagem - agora é campo separado)
   let descricaoCompleta = descricao;
   if (itensSelecionados.length > 0) {
     const itensTexto = itensSelecionados
@@ -1284,11 +1289,8 @@ async function handleSubmit(e) {
     descricaoCompleta = `${itensTexto} - ${descricao}`;
   }
 
-  // Adiciona embalagem se selecionada
+  // Pega embalagem como campo separado
   const embalagemTexto = getEmbalagemTexto();
-  if (embalagemTexto) {
-    descricaoCompleta = `${descricaoCompleta} ${embalagemTexto}`;
-  }
 
   setLoading(true);
 
@@ -1306,6 +1308,7 @@ async function handleSubmit(e) {
         data,
         horario,
         descricao: descricaoCompleta,
+        embalagem: embalagemTexto,
         antecedencia_minutos: antecedencia,
         itens: itensParaSalvar,
       }),
@@ -1430,17 +1433,20 @@ window.abrirModalEditar = async function (id) {
 
   entregaEditandoId = id;
 
-  // Preenche campos do modal
-  document.getElementById("modal-data").value = entrega.data;
-  document.getElementById("modal-horario").value = entrega.horario;
-  document.getElementById("modal-descricao").value = entrega.descricao;
-  document.getElementById("modal-antecedencia").value =
-    entrega.antecedencia_minutos || 30;
-
   // Busca detalhes da entrega com itens
   try {
     const response = await fetch(`${API_BASE}/api/entregas/${id}`);
     const entregaCompleta = await response.json();
+
+    // Preenche campos do modal com dados completos
+    document.getElementById("modal-data").value = entregaCompleta.data;
+    document.getElementById("modal-horario").value = entregaCompleta.horario;
+    document.getElementById("modal-descricao").value =
+      entregaCompleta.descricao;
+    document.getElementById("modal-embalagem").value =
+      entregaCompleta.embalagem || "";
+    document.getElementById("modal-antecedencia").value =
+      entregaCompleta.antecedencia_minutos || 30;
 
     // Carrega itens do pedido
     itensModalEditando = (entregaCompleta.itens || []).map((item) => ({
@@ -1450,7 +1456,14 @@ window.abrirModalEditar = async function (id) {
       preco_unitario: item.preco_unitario || 0,
     }));
   } catch (error) {
-    console.error("Erro ao buscar itens:", error);
+    console.error("Erro ao buscar entrega:", error);
+    // Fallback para dados básicos
+    document.getElementById("modal-data").value = entrega.data;
+    document.getElementById("modal-horario").value = entrega.horario;
+    document.getElementById("modal-descricao").value = entrega.descricao;
+    document.getElementById("modal-embalagem").value = entrega.embalagem || "";
+    document.getElementById("modal-antecedencia").value =
+      entrega.antecedencia_minutos || 30;
     itensModalEditando = [];
   }
 
@@ -1630,6 +1643,7 @@ window.salvarEdicao = async function () {
   const data = document.getElementById("modal-data").value;
   const horario = document.getElementById("modal-horario").value;
   let descricaoBase = document.getElementById("modal-descricao").value.trim();
+  const embalagem = document.getElementById("modal-embalagem").value.trim();
   const antecedencia = parseInt(
     document.getElementById("modal-antecedencia").value,
   );
@@ -1688,6 +1702,7 @@ window.salvarEdicao = async function () {
           data,
           horario,
           descricao: descricaoCompleta,
+          embalagem,
           antecedencia_minutos: antecedencia,
           itens: itensParaSalvar,
         }),
@@ -1707,6 +1722,104 @@ window.salvarEdicao = async function () {
   } catch (error) {
     showToast("Erro de conexão", "error");
   }
+};
+
+// ==================== MODAL DE DETALHES DO DIA (RELATÓRIOS) ====================
+
+window.abrirModalDia = async function (dataOriginal) {
+  const modal = document.getElementById("modal-dia");
+  const titulo = document.getElementById("modal-dia-titulo");
+  const subtitulo = document.getElementById("modal-dia-subtitulo");
+  const lista = document.getElementById("modal-dia-lista");
+
+  // Formata a data para exibição
+  const dataFormatada = new Date(dataOriginal + "T12:00:00").toLocaleDateString(
+    "pt-BR",
+    {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    },
+  );
+
+  titulo.textContent = "Entregas do Dia";
+  subtitulo.textContent = dataFormatada;
+  lista.innerHTML =
+    '<p class="text-gray-500 text-center py-4">Carregando...</p>';
+
+  // Mostra o modal
+  modal.classList.remove("hidden");
+
+  try {
+    // Busca entregas do dia
+    const response = await fetch(
+      `${API_BASE}/api/entregas/por-data/${dataOriginal}`,
+    );
+    const entregasDoDia = await response.json();
+
+    if (entregasDoDia.length === 0) {
+      lista.innerHTML =
+        '<p class="text-gray-500 text-center py-4">Nenhuma entrega neste dia</p>';
+      return;
+    }
+
+    // Ordena por horário
+    entregasDoDia.sort((a, b) => a.horario.localeCompare(b.horario));
+
+    // Renderiza as entregas
+    lista.innerHTML = entregasDoDia
+      .map((entrega) => {
+        const isConcluida = entrega.status === "concluida";
+        const isAtencao = entrega.status === "atencao";
+
+        let statusBadge = "";
+        if (isConcluida) {
+          statusBadge =
+            '<span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">Entregue</span>';
+        } else if (isAtencao) {
+          statusBadge =
+            '<span class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full">Atenção</span>';
+        } else {
+          statusBadge =
+            '<span class="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full">Agendada</span>';
+        }
+
+        // Monta lista de itens
+        let itensHtml = "";
+        if (entrega.itens && entrega.itens.length > 0) {
+          itensHtml = `
+          <div class="mt-2 text-sm text-gray-600">
+            ${entrega.itens.map((i) => `<span class="inline-block bg-gray-100 px-2 py-1 rounded mr-1 mb-1">${i.quantidade}x ${i.nome}</span>`).join("")}
+          </div>
+        `;
+        }
+
+        return `
+        <div onclick="fecharModalDia(); abrirModalEditar(${entrega.id})" class="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:shadow-md hover:border-orange-300 transition-all">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-lg font-bold text-orange-500">${entrega.horario.substring(0, 5)}</span>
+              ${statusBadge}
+            </div>
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+          </div>
+          <p class="font-medium text-gray-800">${escapeHtml(entrega.descricao)}</p>
+          ${itensHtml}
+        </div>
+      `;
+      })
+      .join("");
+  } catch (error) {
+    console.error("Erro ao buscar entregas do dia:", error);
+    lista.innerHTML =
+      '<p class="text-red-500 text-center py-4">Erro ao carregar entregas</p>';
+  }
+};
+
+window.fecharModalDia = function () {
+  document.getElementById("modal-dia").classList.add("hidden");
 };
 
 window.duplicarPedido = function () {

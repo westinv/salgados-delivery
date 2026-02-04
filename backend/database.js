@@ -36,6 +36,16 @@ async function initDatabase() {
     )
   `);
 
+  // Adiciona coluna embalagem se não existir (migração)
+  try {
+    await db.execute(
+      `ALTER TABLE entregas ADD COLUMN embalagem TEXT DEFAULT ''`,
+    );
+    console.log("Coluna 'embalagem' adicionada");
+  } catch (e) {
+    // Coluna já existe, ignora
+  }
+
   // Cria tabela de tokens
   await db.execute(`
     CREATE TABLE IF NOT EXISTS tokens (
@@ -122,12 +132,13 @@ const entregas = {
 
   criar: async (entrega) => {
     const result = await db.execute({
-      sql: `INSERT INTO entregas (data, horario, descricao, antecedencia_minutos, alexa_reminder_id)
-            VALUES (?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO entregas (data, horario, descricao, embalagem, antecedencia_minutos, alexa_reminder_id)
+            VALUES (?, ?, ?, ?, ?, ?)`,
       args: [
         entrega.data,
         entrega.horario,
         entrega.descricao,
+        entrega.embalagem || "",
         entrega.antecedencia_minutos || 30,
         entrega.alexa_reminder_id || null,
       ],
@@ -138,13 +149,14 @@ const entregas = {
   atualizar: async (id, dados) => {
     return await db.execute({
       sql: `UPDATE entregas
-            SET data = ?, horario = ?, descricao = ?, antecedencia_minutos = ?,
+            SET data = ?, horario = ?, descricao = ?, embalagem = ?, antecedencia_minutos = ?,
                 alexa_reminder_id = ?, status = ?
             WHERE id = ?`,
       args: [
         dados.data,
         dados.horario,
         dados.descricao,
+        dados.embalagem || "",
         dados.antecedencia_minutos,
         dados.alexa_reminder_id,
         dados.status,

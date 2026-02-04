@@ -182,10 +182,41 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// GET /api/entregas/por-data/:data - Busca entregas de uma data específica
+router.get("/por-data/:data", async (req, res) => {
+  try {
+    const { data } = req.params;
+    const lista = await entregas.listar();
+
+    // Filtra entregas da data especificada
+    const entregasDoDia = lista.filter((e) => e.data === data);
+
+    // Busca itens de cada entrega
+    const entregasComItens = await Promise.all(
+      entregasDoDia.map(async (entrega) => {
+        const itens = await itensPedido.listarPorEntrega(entrega.id);
+        return { ...entrega, itens: itens || [] };
+      }),
+    );
+
+    res.json(entregasComItens);
+  } catch (error) {
+    console.error("Erro ao buscar entregas por data:", error);
+    res.status(500).json({ error: "Erro ao buscar entregas" });
+  }
+});
+
 // POST /api/entregas - Cria nova entrega
 router.post("/", async (req, res) => {
   try {
-    const { data, horario, descricao, antecedencia_minutos, itens } = req.body;
+    const {
+      data,
+      horario,
+      descricao,
+      embalagem,
+      antecedencia_minutos,
+      itens,
+    } = req.body;
 
     if (!data || !horario || !descricao) {
       return res.status(400).json({
@@ -210,6 +241,7 @@ router.post("/", async (req, res) => {
       data,
       horario,
       descricao,
+      embalagem: embalagem || "",
       antecedencia_minutos: antecedencia_minutos || 30,
     });
 
@@ -297,7 +329,14 @@ router.post("/:id/concluir", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, horario, descricao, antecedencia_minutos, itens } = req.body;
+    const {
+      data,
+      horario,
+      descricao,
+      embalagem,
+      antecedencia_minutos,
+      itens,
+    } = req.body;
 
     const entregaExistente = await entregas.buscarPorId(id);
     if (!entregaExistente) {
@@ -333,6 +372,7 @@ router.put("/:id", async (req, res) => {
       data,
       horario,
       descricao,
+      embalagem: embalagem || entregaExistente.embalagem || "",
       antecedencia_minutos: antecedencia_minutos || 30,
       alexa_reminder_id: entregaExistente.alexa_reminder_id,
       status: entregaExistente.status,

@@ -1191,6 +1191,21 @@
                         />
                     </div>
 
+                    <!-- Embalagem -->
+                    <div>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-2"
+                            >Embalagem</label
+                        >
+                        <input
+                            type="text"
+                            id="modal-embalagem"
+                            maxlength="200"
+                            placeholder="Ex: 2x Tupperware azul grande"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                    </div>
+
                     <!-- Itens do Pedido -->
                     <div id="modal-itens-container">
                         <label
@@ -1308,6 +1323,73 @@
                         class="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-300 active:bg-gray-400 btn-touch"
                     >
                         Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Detalhes do Dia (Relatórios) -->
+        <div
+            id="modal-dia"
+            class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+            <!-- Overlay -->
+            <div
+                class="absolute inset-0 bg-black bg-opacity-50"
+                onclick="fecharModalDia()"
+            ></div>
+
+            <!-- Conteúdo do Modal -->
+            <div
+                class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            >
+                <!-- Header do Modal -->
+                <div
+                    class="sticky top-0 bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-t-2xl flex items-center justify-between"
+                >
+                    <div>
+                        <h2 id="modal-dia-titulo" class="text-lg font-bold">
+                            Entregas do Dia
+                        </h2>
+                        <p
+                            id="modal-dia-subtitulo"
+                            class="text-sm opacity-80"
+                        ></p>
+                    </div>
+                    <button
+                        onclick="fecharModalDia()"
+                        class="p-2 hover:bg-blue-600 rounded-lg"
+                    >
+                        <svg
+                            class="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            ></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Lista de Entregas do Dia -->
+                <div id="modal-dia-lista" class="p-4 space-y-3">
+                    <p class="text-gray-500 text-center">Carregando...</p>
+                </div>
+
+                <!-- Footer -->
+                <div
+                    class="sticky bottom-0 bg-gray-50 p-4 rounded-b-2xl border-t"
+                >
+                    <button
+                        onclick="fecharModalDia()"
+                        class="w-full bg-gray-200 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-300 active:bg-gray-400 btn-touch"
+                    >
+                        Fechar
                     </button>
                 </div>
             </div>

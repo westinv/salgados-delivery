@@ -205,6 +205,7 @@ app.get("/api/relatorios", async (req, res) => {
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([data, quantidade]) => ({
         data: new Date(data + "T12:00:00").toLocaleDateString("pt-BR"),
+        dataOriginal: data, // formato YYYY-MM-DD para buscar
         quantidade,
       }));
 
