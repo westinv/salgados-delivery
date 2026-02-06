@@ -806,27 +806,46 @@ window.removerProduto = async function (id) {
   }
 };
 
-// ==================== PRESET: CENTO DE SALGADOS ====================
+// ==================== PRESETS DE SALGADOS ====================
 
-window.aplicarPresetCento = function () {
-  // Verifica se há pelo menos 4 tipos de salgados no estoque
-  const itensComEstoque = estoqueItems.filter((item) => item.quantidade >= 25);
+// Configuração dos presets com quantidades exatas por tipo
+const PRESETS_CONFIG = {
+  50: [13, 13, 12, 12],   // 13+13+12+12 = 50
+  100: [25, 25, 25, 25],  // 25+25+25+25 = 100
+  150: [38, 38, 37, 37],  // 38+38+37+37 = 150
+  200: [50, 50, 50, 50],  // 50+50+50+50 = 200
+};
+
+window.aplicarPreset = function (quantidadeTotal) {
+  const quantidades = PRESETS_CONFIG[quantidadeTotal];
+  if (!quantidades) {
+    showToast("Preset não configurado", "error");
+    return;
+  }
+
+  // Quantidade mínima necessária por tipo (a maior do preset)
+  const qtdMinima = Math.max(...quantidades);
+
+  // Verifica se há pelo menos 4 tipos de salgados com estoque suficiente
+  const itensComEstoque = estoqueItems.filter(
+    (item) => item.quantidade >= qtdMinima,
+  );
 
   if (itensComEstoque.length < 4) {
     // Mostra quais itens têm estoque insuficiente
     const itensInsuficientes = estoqueItems
-      .filter((item) => item.quantidade < 25)
+      .filter((item) => item.quantidade < qtdMinima)
       .map((item) => `${item.nome}: ${item.quantidade} un`)
-      .join("\n");
+      .join(", ");
 
     showToast(
-      "Estoque insuficiente para o Cento! Precisa de pelo menos 25 de 4 tipos.",
+      `Estoque insuficiente! Precisa de pelo menos ${qtdMinima} de cada tipo.`,
       "error",
     );
 
     if (itensInsuficientes) {
       setTimeout(() => {
-        showToast("Verifique o estoque dos produtos", "warning");
+        showToast(`Falta estoque: ${itensInsuficientes}`, "warning");
       }, 2000);
     }
     return;
@@ -838,12 +857,12 @@ window.aplicarPresetCento = function () {
   // Pega os 4 primeiros itens com estoque suficiente
   const itensSelecionadosPreset = itensComEstoque.slice(0, 4);
 
-  // Adiciona 25 de cada
-  itensSelecionadosPreset.forEach((item) => {
+  // Adiciona as quantidades configuradas
+  itensSelecionadosPreset.forEach((item, index) => {
     itensSelecionados.push({
       id: item.id,
       nome: item.nome,
-      quantidade: 25,
+      quantidade: quantidades[index],
       maxQtd: item.quantidade,
     });
   });
@@ -851,14 +870,25 @@ window.aplicarPresetCento = function () {
   // Atualiza a interface
   renderItensDisponiveis();
 
-  // Feedback visual e sonoro
-  showToast("Cento aplicado! 25 de cada tipo adicionado.", "success");
+  // Feedback visual
+  const nomePreset =
+    quantidadeTotal === 100
+      ? "Cento"
+      : quantidadeTotal === 50
+        ? "50 salgados"
+        : `${quantidadeTotal} salgados`;
+  showToast(`${nomePreset} aplicado!`, "success");
 
   // Scroll suave para os itens selecionados
   const itensEl = document.getElementById("itens-selecionados");
   if (itensEl) {
     itensEl.scrollIntoView({ behavior: "smooth", block: "center" });
   }
+};
+
+// Mantém compatibilidade com função antiga
+window.aplicarPresetCento = function () {
+  aplicarPreset(100);
 };
 
 // ==================== ITENS DO PEDIDO (CHIPS) ====================
