@@ -1263,7 +1263,13 @@ function renderHistorico() {
               </svg>
             </button>
           `
-              : ""
+              : `
+            <button onclick="event.stopPropagation(); reverterEntrega(${entrega.id})" class="p-3 text-orange-500 hover:bg-orange-50 active:bg-orange-100 rounded-xl btn-touch" title="Desfazer conclusão">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4"></path>
+              </svg>
+            </button>
+          `
           }
         </div>
       </div>
@@ -1421,6 +1427,24 @@ window.concluirEntrega = async function (id) {
     if (response.ok) {
       showToast("Entrega concluída!", "success");
       await carregarEntregas();
+    }
+  } catch (error) {
+    showToast("Erro de conexão", "error");
+  }
+};
+
+window.reverterEntrega = async function (id) {
+  if (!confirm("Desfazer conclusão e voltar para agendada?")) return;
+  try {
+    const response = await fetch(`${API_BASE}/api/entregas/${id}/reverter`, {
+      method: "POST",
+    });
+    if (response.ok) {
+      showToast("Entrega revertida para agendada!", "success");
+      await carregarEntregas();
+    } else {
+      const result = await response.json();
+      showToast(result.error || "Erro ao reverter", "error");
     }
   } catch (error) {
     showToast("Erro de conexão", "error");

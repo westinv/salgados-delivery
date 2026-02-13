@@ -209,14 +209,8 @@ router.get("/por-data/:data", async (req, res) => {
 // POST /api/entregas - Cria nova entrega
 router.post("/", async (req, res) => {
   try {
-    const {
-      data,
-      horario,
-      descricao,
-      embalagem,
-      antecedencia_minutos,
-      itens,
-    } = req.body;
+    const { data, horario, descricao, embalagem, antecedencia_minutos, itens } =
+      req.body;
 
     if (!data || !horario || !descricao) {
       return res.status(400).json({
@@ -325,18 +319,46 @@ router.post("/:id/concluir", async (req, res) => {
   }
 });
 
+// POST /api/entregas/:id/reverter - Reverte entrega concluída para agendada
+router.post("/:id/reverter", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const entrega = await entregas.buscarPorId(id);
+    if (!entrega) {
+      return res.status(404).json({ error: "Entrega não encontrada" });
+    }
+
+    if (entrega.status === "agendada") {
+      return res.status(400).json({ error: "Entrega já está agendada" });
+    }
+
+    await entregas.atualizar(id, {
+      ...entrega,
+      status: "agendada",
+    });
+
+    // Reagenda notificação se for futura
+    const dataHoraEntrega = new Date(
+      `${entrega.data}T${entrega.horario}:00-03:00`,
+    );
+    if (dataHoraEntrega > new Date()) {
+      agendarNotificacao({ ...entrega, id: parseInt(id) });
+    }
+
+    res.json({ success: true, message: "Entrega revertida para agendada" });
+  } catch (error) {
+    console.error("Erro ao reverter entrega:", error);
+    res.status(500).json({ error: "Erro ao reverter entrega" });
+  }
+});
+
 // PUT /api/entregas/:id - Atualiza entrega existente
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      data,
-      horario,
-      descricao,
-      embalagem,
-      antecedencia_minutos,
-      itens,
-    } = req.body;
+    const { data, horario, descricao, embalagem, antecedencia_minutos, itens } =
+      req.body;
 
     const entregaExistente = await entregas.buscarPorId(id);
     if (!entregaExistente) {
