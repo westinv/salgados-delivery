@@ -810,10 +810,10 @@ window.removerProduto = async function (id) {
 
 // Configuração dos presets com quantidades exatas por tipo
 const PRESETS_CONFIG = {
-  50: [13, 13, 12, 12],   // 13+13+12+12 = 50
-  100: [25, 25, 25, 25],  // 25+25+25+25 = 100
-  150: [38, 38, 37, 37],  // 38+38+37+37 = 150
-  200: [50, 50, 50, 50],  // 50+50+50+50 = 200
+  50: [13, 13, 12, 12], // 13+13+12+12 = 50
+  100: [25, 25, 25, 25], // 25+25+25+25 = 100
+  150: [38, 38, 37, 37], // 38+38+37+37 = 150
+  200: [50, 50, 50, 50], // 50+50+50+50 = 200
 };
 
 window.aplicarPreset = function (quantidadeTotal) {
@@ -1382,13 +1382,30 @@ async function handleSubmit(e) {
 }
 
 window.removerEntrega = async function (id) {
-  if (!confirm("Remover esta entrega?")) return;
+  if (!confirm("Remover esta entrega? Os itens serão devolvidos ao estoque."))
+    return;
   try {
+    // Busca os itens do pedido antes de remover
+    const detalhes = await fetch(`${API_BASE}/api/entregas/${id}`);
+    const entregaCompleta = await detalhes.json();
+
     const response = await fetch(`${API_BASE}/api/entregas/${id}`, {
       method: "DELETE",
     });
     if (response.ok) {
-      showToast("Entrega removida", "info");
+      // Devolve os itens ao estoque
+      if (entregaCompleta.itens && entregaCompleta.itens.length > 0) {
+        for (const item of entregaCompleta.itens) {
+          await fetch(`${API_BASE}/api/estoque/${item.estoque_id}/adicionar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ quantidade: item.quantidade }),
+          });
+        }
+      }
+
+      showToast("Entrega removida e estoque atualizado", "info");
+      await carregarEstoque();
       await carregarEntregas();
     }
   } catch (error) {
@@ -1478,6 +1495,10 @@ window.abrirModalEditar = async function (id) {
     document.getElementById("modal-antecedencia").value =
       entregaCompleta.antecedencia_minutos || 30;
 
+    // Extrai nome do cliente da descrição (formato: "50x Coxinha, 30x Risole - Maria")
+    const nomeCliente = extrairNomeCliente(entregaCompleta.descricao);
+    document.getElementById("modal-cliente").value = nomeCliente;
+
     // Carrega itens do pedido
     itensModalEditando = (entregaCompleta.itens || []).map((item) => ({
       estoque_id: item.estoque_id,
@@ -1494,6 +1515,9 @@ window.abrirModalEditar = async function (id) {
     document.getElementById("modal-embalagem").value = entrega.embalagem || "";
     document.getElementById("modal-antecedencia").value =
       entrega.antecedencia_minutos || 30;
+
+    const nomeCliente = extrairNomeCliente(entrega.descricao);
+    document.getElementById("modal-cliente").value = nomeCliente;
     itensModalEditando = [];
   }
 
@@ -1664,6 +1688,24 @@ window.atualizarQtdModal = function (index, valor) {
   renderItensModal();
 };
 
+// Extrai o nome do cliente da descrição completa
+// Formato: "50x Coxinha, 30x Risole - Maria" -> "Maria"
+// Se não tem itens, retorna a descrição limpa
+function extrairNomeCliente(descricao) {
+  let nome = descricao;
+
+  // Se tem formato "itens - cliente", pega só o cliente
+  const partes = nome.split(" - ");
+  if (partes.length > 1 && partes[0].includes("x ")) {
+    nome = partes.slice(1).join(" - ");
+  }
+
+  // Remove embalagem [...]
+  nome = nome.replace(/\s*\[.*?\]\s*/g, "").trim();
+
+  return nome;
+}
+
 window.salvarEdicao = async function () {
   if (!entregaEditandoId) {
     showToast("Nenhuma entrega selecionada", "error");
@@ -1672,13 +1714,13 @@ window.salvarEdicao = async function () {
 
   const data = document.getElementById("modal-data").value;
   const horario = document.getElementById("modal-horario").value;
-  let descricaoBase = document.getElementById("modal-descricao").value.trim();
+  const cliente = document.getElementById("modal-cliente").value.trim();
   const embalagem = document.getElementById("modal-embalagem").value.trim();
   const antecedencia = parseInt(
     document.getElementById("modal-antecedencia").value,
   );
 
-  if (!data || !horario || !descricaoBase) {
+  if (!data || !horario || !cliente) {
     showToast("Preencha todos os campos", "error");
     return;
   }
@@ -1690,30 +1732,15 @@ window.salvarEdicao = async function () {
     return;
   }
 
-  // Monta descrição com itens
-  let descricaoCompleta = descricaoBase;
-
-  // Remove itens antigos da descrição (formato: "50x Coxinha, 30x Risole - ")
-  // Mantém só a parte após o último " - " que é o nome do cliente
-  const partes = descricaoBase.split(" - ");
-  if (partes.length > 1) {
-    // Verifica se a primeira parte parece ser lista de itens (contém "x ")
-    if (partes[0].includes("x ")) {
-      descricaoBase = partes.slice(1).join(" - ");
-    }
-  }
-
-  // Remove embalagem antiga [...]
-  descricaoBase = descricaoBase.replace(/\s*\[.*?\]\s*/g, "").trim();
-
-  // Adiciona itens na frente se houver
+  // Monta descrição com itens + nome do cliente
+  let descricaoCompleta;
   if (itensModalEditando.length > 0) {
     const itensTexto = itensModalEditando
       .map((i) => `${i.quantidade}x ${i.nome}`)
       .join(", ");
-    descricaoCompleta = `${itensTexto} - ${descricaoBase}`;
+    descricaoCompleta = `${itensTexto} - ${cliente}`;
   } else {
-    descricaoCompleta = descricaoBase;
+    descricaoCompleta = cliente;
   }
 
   // Prepara itens para enviar
