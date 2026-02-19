@@ -19,34 +19,37 @@ async function enviarAnuncio(texto, repetir = 3) {
     throw new Error("Voice Monkey não configurado");
   }
 
-  // O access_token contém: "token:device" (separados por :)
-  const [token, device] = tokenData.access_token.split(":");
+  // O access_token contém: "token:device1,device2,..." (devices separados por vírgula)
+  const colonIndex = tokenData.access_token.indexOf(":");
+  const token = tokenData.access_token.substring(0, colonIndex);
+  const devicesPart = tokenData.access_token.substring(colonIndex + 1);
 
-  if (!token || !device) {
+  if (!token || !devicesPart) {
     throw new Error("Configuração inválida. Use o formato: TOKEN:DEVICE_ID");
   }
+
+  const devices = devicesPart.split(",").map((d) => d.trim()).filter(Boolean);
 
   // Repete o texto o número de vezes especificado
   const textoRepetido = Array(repetir).fill(texto).join(". . . ");
 
-  console.log("Enviando anúncio para Alexa:", texto, `(${repetir}x)`);
+  console.log(`Enviando anúncio para ${devices.length} Alexa(s):`, texto, `(${repetir}x)`);
 
-  try {
-    const response = await axios.post(VOICE_MONKEY_URL, {
-      token: token,
-      device: device,
-      text: textoRepetido,
-    });
+  const resultados = await Promise.allSettled(
+    devices.map((device) =>
+      axios.post(VOICE_MONKEY_URL, { token, device, text: textoRepetido })
+    )
+  );
 
-    console.log("Anúncio enviado com sucesso:", response.data);
-    return response.data;
-  } catch (error) {
-    console.error(
-      "Erro ao enviar anúncio:",
-      error.response?.data || error.message,
-    );
-    throw error;
+  const erros = resultados.filter((r) => r.status === "rejected");
+  if (erros.length === devices.length) {
+    const err = erros[0].reason;
+    console.error("Erro ao enviar anúncio:", err.response?.data || err.message);
+    throw err;
   }
+
+  console.log(`Anúncio enviado com sucesso para ${resultados.length - erros.length}/${devices.length} dispositivo(s)`);
+  return { sent: devices.length - erros.length, total: devices.length };
 }
 
 // Função para agendar notificação

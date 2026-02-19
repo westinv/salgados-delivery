@@ -259,7 +259,10 @@ app.post("/api/notificar-estoque-baixo", async (req, res) => {
       return res.status(400).json({ error: "Voice Monkey não configurado" });
     }
 
-    const [token, device] = tokenData.access_token.split(":");
+    const colonIndex = tokenData.access_token.indexOf(":");
+    const token = tokenData.access_token.substring(0, colonIndex);
+    const devicesPart = tokenData.access_token.substring(colonIndex + 1);
+    const devices = devicesPart.split(",").map((d) => d.trim()).filter(Boolean);
 
     const itensTexto = baixo
       .map((i) => `${i.nome}: ${i.quantidade} unidades`)
@@ -267,11 +270,11 @@ app.post("/api/notificar-estoque-baixo", async (req, res) => {
     const texto = `Atenção! Estoque baixo dos seguintes itens: ${itensTexto}`;
 
     const axios = require("axios");
-    await axios.post("https://api-v2.voicemonkey.io/announcement", {
-      token,
-      device,
-      text: texto,
-    });
+    await Promise.allSettled(
+      devices.map((device) =>
+        axios.post("https://api-v2.voicemonkey.io/announcement", { token, device, text: texto })
+      )
+    );
 
     res.json({ success: true, message: "Notificação enviada!" });
   } catch (error) {
