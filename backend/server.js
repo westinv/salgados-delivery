@@ -262,7 +262,10 @@ app.post("/api/notificar-estoque-baixo", async (req, res) => {
     const colonIndex = tokenData.access_token.indexOf(":");
     const token = tokenData.access_token.substring(0, colonIndex);
     const devicesPart = tokenData.access_token.substring(colonIndex + 1);
-    const devices = devicesPart.split(",").map((d) => d.trim()).filter(Boolean);
+    const devices = devicesPart
+      .split(",")
+      .map((d) => d.trim())
+      .filter(Boolean);
 
     const itensTexto = baixo
       .map((i) => `${i.nome}: ${i.quantidade} unidades`)
@@ -272,8 +275,12 @@ app.post("/api/notificar-estoque-baixo", async (req, res) => {
     const axios = require("axios");
     await Promise.allSettled(
       devices.map((device) =>
-        axios.post("https://api-v2.voicemonkey.io/announcement", { token, device, text: texto })
-      )
+        axios.post("https://api-v2.voicemonkey.io/announcement", {
+          token,
+          device,
+          text: texto,
+        }),
+      ),
     );
 
     res.json({ success: true, message: "Notificação enviada!" });
@@ -317,6 +324,23 @@ app.get("/privacy", (req, res) => {
         </body>
         </html>
     `);
+});
+
+app.get("/api/debug-token", async (req, res) => {
+  const tokenData = await tokens.obter();
+  const raw = tokenData?.access_token || "";
+  const colonIndex = raw.indexOf(":");
+  const token = raw.substring(0, colonIndex);
+  const devices = raw
+    .substring(colonIndex + 1)
+    .split(",")
+    .map((d) => d.trim());
+
+  res.json({
+    tokenPresente: !!token,
+    devices,
+    totalDevices: devices.length,
+  });
 });
 
 // Fallback para SPA - retorna index.html para rotas não encontradas

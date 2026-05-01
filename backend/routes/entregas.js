@@ -1,7 +1,7 @@
 // routes/entregas.js - CRUD de entregas + integração Voice Monkey (Alexa)
 const express = require("express");
 const axios = require("axios");
-const { entregas, tokens, itensPedido } = require("../database");
+const { entregas, tokens, itensPedido, estoque } = require("../database");
 
 const router = express.Router();
 
@@ -28,17 +28,24 @@ async function enviarAnuncio(texto, repetir = 3) {
     throw new Error("Configuração inválida. Use o formato: TOKEN:DEVICE_ID");
   }
 
-  const devices = devicesPart.split(",").map((d) => d.trim()).filter(Boolean);
+  const devices = devicesPart
+    .split(",")
+    .map((d) => d.trim())
+    .filter(Boolean);
 
   // Repete o texto o número de vezes especificado
   const textoRepetido = Array(repetir).fill(texto).join(". . . ");
 
-  console.log(`Enviando anúncio para ${devices.length} Alexa(s):`, texto, `(${repetir}x)`);
+  console.log(
+    `Enviando anúncio para ${devices.length} Alexa(s):`,
+    texto,
+    `(${repetir}x)`,
+  );
 
   const resultados = await Promise.allSettled(
     devices.map((device) =>
-      axios.post(VOICE_MONKEY_URL, { token, device, text: textoRepetido })
-    )
+      axios.post(VOICE_MONKEY_URL, { token, device, text: textoRepetido }),
+    ),
   );
 
   const erros = resultados.filter((r) => r.status === "rejected");
@@ -48,7 +55,9 @@ async function enviarAnuncio(texto, repetir = 3) {
     throw err;
   }
 
-  console.log(`Anúncio enviado com sucesso para ${resultados.length - erros.length}/${devices.length} dispositivo(s)`);
+  console.log(
+    `Anúncio enviado com sucesso para ${resultados.length - erros.length}/${devices.length} dispositivo(s)`,
+  );
   return { sent: devices.length - erros.length, total: devices.length };
 }
 
@@ -234,6 +243,21 @@ router.post("/", async (req, res) => {
       });
     }
 
+    // --- VALIDAÇÃO DE ESTOQUE ---
+    if (itens && Array.isArray(itens) && itens.length > 0) {
+      for (const item of itens) {
+        if (item.estoque_id && item.quantidade > 0) {
+          const itemEstoque = await estoque.buscarPorId(item.estoque_id);
+          if (!itemEstoque) {
+            return res.status(400).json({ error: `Item de estoque ID ${item.estoque_id} não encontrado` });
+          }
+          if (itemEstoque.quantidade < item.quantidade) {
+            return res.status(400).json({ error: `Estoque insuficiente para: ${itemEstoque.nome}. Disponível: ${itemEstoque.quantidade}` });
+          }
+        }
+      }
+    }
+
     const novaEntrega = await entregas.criar({
       data,
       horario,
@@ -242,14 +266,18 @@ router.post("/", async (req, res) => {
       antecedencia_minutos: antecedencia_minutos || 30,
     });
 
-    // Salva os itens do pedido se foram enviados
+    // Salva os itens do pedido se foram enviados E debita o estoque
     if (itens && Array.isArray(itens) && itens.length > 0) {
       for (const item of itens) {
-        await itensPedido.adicionar(
-          novaEntrega.id,
-          item.estoque_id,
-          item.quantidade,
-        );
+        if (item.estoque_id && item.quantidade > 0) {
+          await itensPedido.adicionar(
+            novaEntrega.id,
+            item.estoque_id,
+            item.quantidade,
+          );
+          // Debita a quantidade do estoque
+          await estoque.removerQuantidade(item.estoque_id, item.quantidade);
+        }
       }
     }
 
@@ -290,6 +318,16 @@ router.delete("/:id", async (req, res) => {
     const entrega = await entregas.buscarPorId(id);
     if (!entrega) {
       return res.status(404).json({ error: "Entrega não encontrada" });
+    }
+
+    // Estorna itens para o estoque
+    const itens = await itensPedido.listarPorEntrega(id);
+    if (itens && Array.isArray(itens)) {
+      for (const item of itens) {
+        if (item.estoque_id && item.quantidade > 0) {
+          await estoque.adicionarQuantidade(item.estoque_id, item.quantidade);
+        }
+      }
     }
 
     cancelarAgendamento(parseInt(id));
@@ -389,6 +427,29 @@ router.put("/:id", async (req, res) => {
       }
     }
 
+    // --- VALIDAÇÃO DE ESTOQUE (EDIÇÃO) ---
+    const itensAntigos = await itensPedido.listarPorEntrega(id);
+    const qtdAntigaPorEstoque = {};
+    for (const itemAntigo of itensAntigos) {
+      qtdAntigaPorEstoque[itemAntigo.estoque_id] = itemAntigo.quantidade;
+    }
+
+    if (itens && Array.isArray(itens) && itens.length > 0) {
+      for (const item of itens) {
+        if (item.estoque_id && item.quantidade > 0) {
+          const itemEstoque = await estoque.buscarPorId(item.estoque_id);
+          if (!itemEstoque) {
+            return res.status(400).json({ error: `Item de estoque ID ${item.estoque_id} não encontrado` });
+          }
+          const qtdAntiga = qtdAntigaPorEstoque[item.estoque_id] || 0;
+          const estoqueDisponivel = itemEstoque.quantidade + qtdAntiga;
+          if (estoqueDisponivel < item.quantidade) {
+            return res.status(400).json({ error: `Estoque insuficiente para: ${itemEstoque.nome}. Disponível: ${estoqueDisponivel}` });
+          }
+        }
+      }
+    }
+
     // Cancela agendamento antigo
     cancelarAgendamento(parseInt(id));
 
@@ -403,15 +464,21 @@ router.put("/:id", async (req, res) => {
       status: entregaExistente.status,
     });
 
-    // Atualiza itens do pedido se foram enviados
+    // Atualiza itens do pedido se foram enviados E faz o ajuste no estoque
     if (itens && Array.isArray(itens)) {
+      // Devolve ao estoque as quantidades dos itens antigos
+      for (const itemAntigo of itensAntigos) {
+        await estoque.adicionarQuantidade(itemAntigo.estoque_id, itemAntigo.quantidade);
+      }
+
       // Remove itens antigos
       await itensPedido.removerPorEntrega(id);
 
-      // Adiciona novos itens
+      // Adiciona novos itens e debita do estoque
       for (const item of itens) {
         if (item.estoque_id && item.quantidade > 0) {
           await itensPedido.adicionar(id, item.estoque_id, item.quantidade);
+          await estoque.removerQuantidade(item.estoque_id, item.quantidade);
         }
       }
     }

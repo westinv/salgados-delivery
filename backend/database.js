@@ -12,6 +12,12 @@ if (process.env.TURSO_DATABASE_URL) {
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
   console.log("Conectado ao Turso (nuvem)");
+} else if (process.env.NODE_ENV === "test") {
+  // Teste - Banco local isolado
+  db = createClient({
+    url: "file:test.db",
+  });
+  console.log("Usando SQLite local para testes (test.db)");
 } else {
   // Desenvolvimento - SQLite local
   db = createClient({
