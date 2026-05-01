@@ -1353,14 +1353,7 @@ async function handleSubmit(e) {
     const result = await response.json();
 
     if (response.ok) {
-      // Baixa do estoque
-      for (const item of itensSelecionados) {
-        await fetch(`${API_BASE}/api/estoque/${item.id}/remover`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quantidade: item.quantidade }),
-        });
-      }
+      // O backend já faz a baixa automática do estoque
 
       // Limpa formulário
       elements.form.reset();
@@ -1399,16 +1392,7 @@ window.removerEntrega = async function (id) {
       method: "DELETE",
     });
     if (response.ok) {
-      // Devolve os itens ao estoque
-      if (entregaCompleta.itens && entregaCompleta.itens.length > 0) {
-        for (const item of entregaCompleta.itens) {
-          await fetch(`${API_BASE}/api/estoque/${item.estoque_id}/adicionar`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ quantidade: item.quantidade }),
-          });
-        }
-      }
+      // O backend já devolve os itens ao estoque automaticamente
 
       showToast("Entrega removida e estoque atualizado", "info");
       await carregarEstoque();
