@@ -212,11 +212,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function inicializarApp() {
-  elements.data.min = new Date().toISOString().split("T")[0];
-  elements.data.value = elements.data.min;
+  // Pega a data local (evita bug de fuso horário onde UTC já é amanhã)
+  const d = new Date();
+  const dataHojeLocal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  elements.data.min = dataHojeLocal;
+  elements.data.value = dataHojeLocal;
   if (elements.lembreteData) {
-    elements.lembreteData.min = elements.data.min;
-    elements.lembreteData.value = elements.data.min;
+    elements.lembreteData.min = dataHojeLocal;
+    elements.lembreteData.value = dataHojeLocal;
   }
 
   await checkAuthStatus();
