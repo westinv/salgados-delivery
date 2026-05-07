@@ -52,6 +52,19 @@ async function initDatabase() {
     // Coluna já existe, ignora
   }
 
+  // Cria tabela de lembretes
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS lembretes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        data TEXT NOT NULL,
+        horario TEXT NOT NULL,
+        descricao TEXT NOT NULL,
+        antecedencia_minutos INTEGER DEFAULT 30,
+        status TEXT DEFAULT 'agendado',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Cria tabela de tokens
   await db.execute(`
     CREATE TABLE IF NOT EXISTS tokens (
@@ -202,6 +215,75 @@ const entregas = {
   buscarParaAutoConcluir: async () => {
     const result = await db.execute(
       "SELECT * FROM entregas WHERE status = 'agendada'",
+    );
+    return result.rows;
+  },
+};
+
+// Funções auxiliares para lembretes
+const lembretes = {
+  listar: async () => {
+    const result = await db.execute(
+      "SELECT * FROM lembretes ORDER BY data ASC, horario ASC",
+    );
+    return result.rows;
+  },
+
+  buscarPorId: async (id) => {
+    const result = await db.execute({
+      sql: "SELECT * FROM lembretes WHERE id = ?",
+      args: [id],
+    });
+    return result.rows[0];
+  },
+
+  criar: async (lembrete) => {
+    const result = await db.execute({
+      sql: `INSERT INTO lembretes (data, horario, descricao, antecedencia_minutos)
+            VALUES (?, ?, ?, ?)`,
+      args: [
+        lembrete.data,
+        lembrete.horario,
+        lembrete.descricao,
+        lembrete.antecedencia_minutos || 30,
+      ],
+    });
+    return { id: Number(result.lastInsertRowid), ...lembrete };
+  },
+
+  atualizar: async (id, dados) => {
+    return await db.execute({
+      sql: `UPDATE lembretes
+            SET data = ?, horario = ?, descricao = ?, antecedencia_minutos = ?, status = ?
+            WHERE id = ?`,
+      args: [
+        dados.data,
+        dados.horario,
+        dados.descricao,
+        dados.antecedencia_minutos,
+        dados.status,
+        id,
+      ],
+    });
+  },
+
+  remover: async (id) => {
+    return await db.execute({
+      sql: "DELETE FROM lembretes WHERE id = ?",
+      args: [id],
+    });
+  },
+
+  concluir: async (id) => {
+    return await db.execute({
+      sql: "UPDATE lembretes SET status = 'concluido' WHERE id = ?",
+      args: [id],
+    });
+  },
+
+  buscarParaAutoConcluir: async () => {
+    const result = await db.execute(
+      "SELECT * FROM lembretes WHERE status = 'agendado'",
     );
     return result.rows;
   },
@@ -399,6 +481,7 @@ module.exports = {
   db,
   initDatabase,
   entregas,
+  lembretes,
   tokens,
   estoque,
   itensPedido,

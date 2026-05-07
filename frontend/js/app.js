@@ -130,6 +130,14 @@ const elements = {
   estoqueNome: document.getElementById("estoque-nome"),
   estoqueQuantidade: document.getElementById("estoque-quantidade"),
   estoquePreco: document.getElementById("estoque-preco"),
+  // Lembretes
+  formLembrete: document.getElementById("form-lembrete"),
+  lembreteDescricao: document.getElementById("lembrete-descricao"),
+  lembreteData: document.getElementById("lembrete-data"),
+  lembreteHorario: document.getElementById("lembrete-horario"),
+  lembreteAntecedencia: document.getElementById("lembrete-antecedencia"),
+  listaLembretes: document.getElementById("lista-lembretes"),
+  lembretesVazio: document.getElementById("lembretes-vazio"),
 };
 
 let isConfigured = false;
@@ -206,6 +214,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function inicializarApp() {
   elements.data.min = new Date().toISOString().split("T")[0];
   elements.data.value = elements.data.min;
+  if (elements.lembreteData) {
+    elements.lembreteData.min = elements.data.min;
+    elements.lembreteData.value = elements.data.min;
+  }
 
   await checkAuthStatus();
   await carregarEstoque();
@@ -215,6 +227,9 @@ async function inicializarApp() {
 // Event Listeners
 elements.form.addEventListener("submit", handleSubmit);
 elements.formEstoque.addEventListener("submit", handleEstoqueSubmit);
+if (elements.formLembrete) {
+  elements.formLembrete.addEventListener("submit", handleLembreteSubmit);
+}
 elements.btnRefresh.addEventListener("click", carregarEntregas);
 elements.btnRefreshHistorico.addEventListener("click", carregarEntregas);
 elements.btnSalvarConfig.addEventListener("click", salvarConfig);
@@ -246,6 +261,7 @@ window.showPage = function (page) {
     historico: "📋 Histórico",
     relatorios: "📊 Relatórios",
     config: "⚙️ Configurações",
+    lembretes: "🔔 Lembretes",
   };
   elements.pageTitle.textContent = titulos[page] || "🥟 Simone Salgados";
 
@@ -256,6 +272,7 @@ window.showPage = function (page) {
   if (page === "home") renderItensDisponiveis();
   if (page === "agenda") carregarAgenda();
   if (page === "relatorios") carregarRelatorios();
+  if (page === "lembretes") carregarLembretes();
 };
 
 // ==================== AGENDA (PEDIDOS FUTUROS) ====================
@@ -336,6 +353,129 @@ window.carregarAgenda = async function () {
     `;
     })
     .join("");
+};
+
+// ==================== LEMBRETES ====================
+
+let lembretesList = [];
+
+window.carregarLembretes = async function () {
+  try {
+    const response = await fetch(`${API_BASE}/api/lembretes`);
+    lembretesList = await response.json();
+    renderLembretes();
+  } catch (error) {
+    console.error("Erro ao carregar lembretes:", error);
+  }
+};
+
+async function handleLembreteSubmit(e) {
+  e.preventDefault();
+
+  const dados = {
+    data: elements.lembreteData.value,
+    horario: elements.lembreteHorario.value,
+    descricao: elements.lembreteDescricao.value.trim(),
+    antecedencia_minutos: parseInt(elements.lembreteAntecedencia.value) || 30,
+  };
+
+  try {
+    const response = await fetch(`${API_BASE}/api/lembretes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      showToast("Lembrete agendado com sucesso!", "success");
+      elements.formLembrete.reset();
+      elements.lembreteData.value = elements.data.min;
+      await carregarLembretes();
+    } else {
+      showToast(result.error, "error");
+    }
+  } catch (error) {
+    showToast("Erro de conexão", "error");
+  }
+}
+
+function renderLembretes() {
+  const ativos = lembretesList.filter((l) => l.status === "agendado");
+
+  if (ativos.length === 0) {
+    elements.listaLembretes.innerHTML = "";
+    elements.lembretesVazio.classList.remove("hidden");
+    return;
+  }
+
+  elements.lembretesVazio.classList.add("hidden");
+
+  elements.listaLembretes.innerHTML = ativos
+    .sort((a, b) => {
+      const dataA = new Date(`${a.data}T${a.horario}`);
+      const dataB = new Date(`${b.data}T${b.horario}`);
+      return dataA - dataB;
+    })
+    .map((lembrete) => {
+      const isHoje = lembrete.data === new Date().toISOString().split("T")[0];
+
+      return `
+      <div class="bg-white rounded-xl shadow-md p-4 flex items-start gap-4 card-touch">
+        <div class="flex-shrink-0 w-16 text-center">
+          <p class="text-2xl font-bold text-orange-500">${lembrete.horario.substring(0, 5)}</p>
+          <p class="text-xs text-gray-400 mt-1">${isHoje ? "Hoje" : lembrete.data.split("-").reverse().slice(0, 2).join("/")}</p>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-medium text-gray-800 break-words">${escapeHtml(lembrete.descricao)}</p>
+          <p class="text-xs text-gray-500 mt-1">Aviso ${lembrete.antecedencia_minutos} min antes</p>
+        </div>
+        <div class="flex-shrink-0 flex gap-2">
+          <button onclick="concluirLembrete(${lembrete.id})" class="p-2 text-green-500 hover:bg-green-50 rounded-lg">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </button>
+          <button onclick="removerLembrete(${lembrete.id})" class="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+}
+
+window.concluirLembrete = async function (id) {
+  try {
+    const response = await fetch(`${API_BASE}/api/lembretes/${id}/concluir`, {
+      method: "POST",
+    });
+    if (response.ok) {
+      showToast("Lembrete concluído", "success");
+      await carregarLembretes();
+    }
+  } catch (error) {
+    showToast("Erro ao concluir lembrete", "error");
+  }
+};
+
+window.removerLembrete = async function (id) {
+  if (!confirm("Remover este lembrete?")) return;
+  try {
+    const response = await fetch(`${API_BASE}/api/lembretes/${id}`, {
+      method: "DELETE",
+    });
+    if (response.ok) {
+      showToast("Lembrete removido", "success");
+      await carregarLembretes();
+    }
+  } catch (error) {
+    showToast("Erro ao remover lembrete", "error");
+  }
 };
 
 // ==================== RELATÓRIOS ====================
