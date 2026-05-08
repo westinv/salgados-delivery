@@ -32,10 +32,23 @@ function agendarNotificacao(entrega) {
     `Agendando notificação para entrega ${entrega.id} em ${Math.round(tempoAteAviso / 60000)} minutos`,
   );
 
+  // Evita o erro "TimeoutOverflowWarning: does not fit into a 32-bit signed integer" (máximo ~24.8 dias)
+  const MAX_TIMEOUT = 2147483647;
+  if (tempoAteAviso > MAX_TIMEOUT) {
+    console.log(`Entrega ${entrega.id} está muito no futuro. Agendando verificação intermediária.`);
+    const timeout = setTimeout(() => {
+      agendamentos.delete(entrega.id);
+      agendarNotificacao(entrega);
+    }, MAX_TIMEOUT);
+    agendamentos.set(entrega.id, timeout);
+    return timeout;
+  }
+
   const timeout = setTimeout(async () => {
     try {
       const texto = `Atenção! Em ${entrega.antecedencia_minutos} minutos você tem uma entrega: ${entrega.descricao}`;
       await enviarAnuncio(texto);
+      await entregas.marcarNotificado(entrega.id);
       agendamentos.delete(entrega.id);
     } catch (error) {
       console.error(
@@ -61,43 +74,59 @@ function cancelarAgendamento(entregaId) {
 
 // Ao iniciar, reagenda todas as entregas pendentes
 async function reagendarEntregasPendentes() {
-  const lista = await entregas.listar();
-  const agora = new Date();
+  try {
+    const lista = await entregas.listar();
+    const agora = new Date();
 
-  lista.forEach((entrega) => {
-    if (entrega.status === "agendada") {
-      const dataHoraEntrega = new Date(
-        `${entrega.data}T${entrega.horario}:00-03:00`,
-      );
-      if (dataHoraEntrega > agora) {
-        agendarNotificacao(entrega);
+    for (const entrega of lista) {
+      if (entrega.status === "agendada" && !entrega.notificado) {
+        const dataHoraEntrega = new Date(
+          `${entrega.data}T${entrega.horario}:00-03:00`,
+        );
+        const dataHoraAviso = new Date(
+          dataHoraEntrega.getTime() - (entrega.antecedencia_minutos || 30) * 60 * 1000,
+        );
+
+        if (dataHoraAviso <= agora) {
+          // Aviso já passou — marca como notificado para não disparar nunca mais
+          await entregas.marcarNotificado(entrega.id);
+          console.log(`Entrega ${entrega.id}: aviso já passou, marcando como notificado`);
+        } else if (dataHoraEntrega > agora) {
+          agendarNotificacao(entrega);
+        }
       }
     }
-  });
 
-  console.log(`${agendamentos.size} entregas reagendadas`);
+    console.log(`${agendamentos.size} entregas reagendadas`);
+  } catch (error) {
+    console.error("Erro ao reagendar entregas pendentes (banco temporariamente indisponível):", error.message);
+  }
 }
 
 // Verifica entregas para auto-concluir (2h após horário)
 async function verificarAutoConclusao() {
-  const lista = await entregas.buscarParaAutoConcluir();
-  const agora = new Date();
+  try {
+    const lista = await entregas.buscarParaAutoConcluir();
+    const agora = new Date();
 
-  for (const entrega of lista) {
-    const dataHoraEntrega = new Date(
-      `${entrega.data}T${entrega.horario}:00-03:00`,
-    );
-    const duasHorasDepois = new Date(
-      dataHoraEntrega.getTime() + 2 * 60 * 60 * 1000,
-    );
-
-    if (agora >= duasHorasDepois) {
-      console.log(
-        `Auto-marcando entrega ${entrega.id} como ATENÇÃO (passou 2h)`,
+    for (const entrega of lista) {
+      const dataHoraEntrega = new Date(
+        `${entrega.data}T${entrega.horario}:00-03:00`,
       );
-      await entregas.marcarAtencao(entrega.id);
-      cancelarAgendamento(entrega.id);
+      const duasHorasDepois = new Date(
+        dataHoraEntrega.getTime() + 2 * 60 * 60 * 1000,
+      );
+
+      if (agora >= duasHorasDepois) {
+        console.log(
+          `Auto-marcando entrega ${entrega.id} como ATENÇÃO (passou 2h)`,
+        );
+        await entregas.marcarAtencao(entrega.id);
+        cancelarAgendamento(entrega.id);
+      }
     }
+  } catch (error) {
+    console.error("Erro ao verificar auto-conclusão de entregas (banco temporariamente indisponível):", error.message);
   }
 }
 

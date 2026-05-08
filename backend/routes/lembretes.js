@@ -32,10 +32,22 @@ function agendarNotificacaoLembrete(lembrete) {
     `Agendando notificação para lembrete ${lembrete.id} em ${Math.round(tempoAteAviso / 60000)} minutos`,
   );
 
+  // Evita o erro "TimeoutOverflowWarning" (máximo ~24.8 dias no setTimeout do Node)
+  const MAX_TIMEOUT = 2147483647;
+  if (tempoAteAviso > MAX_TIMEOUT) {
+    const timeout = setTimeout(() => {
+      agendamentosLembretes.delete(lembrete.id);
+      agendarNotificacaoLembrete(lembrete);
+    }, MAX_TIMEOUT);
+    agendamentosLembretes.set(lembrete.id, timeout);
+    return timeout;
+  }
+
   const timeout = setTimeout(async () => {
     try {
       const texto = `Lembrete! Em ${lembrete.antecedencia_minutos} minutos: ${lembrete.descricao}`;
       await enviarAnuncio(texto);
+      await lembretes.marcarNotificado(lembrete.id);
       agendamentosLembretes.delete(lembrete.id);
     } catch (error) {
       console.error(
@@ -61,43 +73,58 @@ function cancelarAgendamentoLembrete(lembreteId) {
 
 // Ao iniciar, reagenda todos os lembretes pendentes
 async function reagendarLembretesPendentes() {
-  const lista = await lembretes.listar();
-  const agora = new Date();
+  try {
+    const lista = await lembretes.listar();
+    const agora = new Date();
 
-  lista.forEach((lembrete) => {
-    if (lembrete.status === "agendado") {
-      const dataHoraLembrete = new Date(
-        `${lembrete.data}T${lembrete.horario}:00-03:00`,
-      );
-      if (dataHoraLembrete > agora) {
-        agendarNotificacaoLembrete(lembrete);
+    for (const lembrete of lista) {
+      if (lembrete.status === "agendado" && !lembrete.notificado) {
+        const dataHoraLembrete = new Date(
+          `${lembrete.data}T${lembrete.horario}:00-03:00`,
+        );
+        const dataHoraAviso = new Date(
+          dataHoraLembrete.getTime() - (lembrete.antecedencia_minutos || 30) * 60 * 1000,
+        );
+
+        if (dataHoraAviso <= agora) {
+          await lembretes.marcarNotificado(lembrete.id);
+          console.log(`Lembrete ${lembrete.id}: aviso já passou, marcando como notificado`);
+        } else if (dataHoraLembrete > agora) {
+          agendarNotificacaoLembrete(lembrete);
+        }
       }
     }
-  });
 
-  console.log(`${agendamentosLembretes.size} lembretes reagendados`);
+    console.log(`${agendamentosLembretes.size} lembretes reagendados`);
+  } catch (error) {
+    console.error("Erro ao reagendar lembretes pendentes (banco temporariamente indisponível):", error.message);
+  }
 }
 
 // Verifica lembretes para auto-concluir (2h após horário)
 async function verificarAutoConclusaoLembretes() {
-  const lista = await lembretes.buscarParaAutoConcluir();
-  const agora = new Date();
+  try {
+    const lista = await lembretes.buscarParaAutoConcluir();
+    const agora = new Date();
 
-  for (const lembrete of lista) {
-    const dataHoraLembrete = new Date(
-      `${lembrete.data}T${lembrete.horario}:00-03:00`,
-    );
-    const duasHorasDepois = new Date(
-      dataHoraLembrete.getTime() + 2 * 60 * 60 * 1000,
-    );
-
-    if (agora >= duasHorasDepois) {
-      console.log(
-        `Auto-marcando lembrete ${lembrete.id} como concluido (passou 2h)`,
+    for (const lembrete of lista) {
+      const dataHoraLembrete = new Date(
+        `${lembrete.data}T${lembrete.horario}:00-03:00`,
       );
-      await lembretes.concluir(lembrete.id);
-      cancelarAgendamentoLembrete(lembrete.id);
+      const duasHorasDepois = new Date(
+        dataHoraLembrete.getTime() + 2 * 60 * 60 * 1000,
+      );
+
+      if (agora >= duasHorasDepois) {
+        console.log(
+          `Auto-marcando lembrete ${lembrete.id} como concluido (passou 2h)`,
+        );
+        await lembretes.concluir(lembrete.id);
+        cancelarAgendamentoLembrete(lembrete.id);
+      }
     }
+  } catch (error) {
+    console.error("Erro ao verificar auto-conclusão de lembretes (banco temporariamente indisponível):", error.message);
   }
 }
 

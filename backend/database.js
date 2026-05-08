@@ -52,6 +52,16 @@ async function initDatabase() {
     // Coluna já existe, ignora
   }
 
+  // Adiciona coluna notificado nas entregas (migração)
+  try {
+    await db.execute(
+      `ALTER TABLE entregas ADD COLUMN notificado INTEGER DEFAULT 0`,
+    );
+    console.log("Coluna 'notificado' adicionada em entregas");
+  } catch (e) {
+    // Coluna já existe, ignora
+  }
+
   // Cria tabela de lembretes
   await db.execute(`
     CREATE TABLE IF NOT EXISTS lembretes (
@@ -61,9 +71,20 @@ async function initDatabase() {
         descricao TEXT NOT NULL,
         antecedencia_minutos INTEGER DEFAULT 30,
         status TEXT DEFAULT 'agendado',
+        notificado INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Adiciona coluna notificado nos lembretes (migração)
+  try {
+    await db.execute(
+      `ALTER TABLE lembretes ADD COLUMN notificado INTEGER DEFAULT 0`,
+    );
+    console.log("Coluna 'notificado' adicionada em lembretes");
+  } catch (e) {
+    // Coluna já existe, ignora
+  }
 
   // Cria tabela de tokens
   await db.execute(`
@@ -218,6 +239,13 @@ const entregas = {
     );
     return result.rows;
   },
+
+  marcarNotificado: async (id) => {
+    return await db.execute({
+      sql: "UPDATE entregas SET notificado = 1 WHERE id = ?",
+      args: [id],
+    });
+  },
 };
 
 // Funções auxiliares para lembretes
@@ -286,6 +314,13 @@ const lembretes = {
       "SELECT * FROM lembretes WHERE status = 'agendado'",
     );
     return result.rows;
+  },
+
+  marcarNotificado: async (id) => {
+    return await db.execute({
+      sql: "UPDATE lembretes SET notificado = 1 WHERE id = ?",
+      args: [id],
+    });
   },
 };
 
