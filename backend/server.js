@@ -22,6 +22,10 @@ const {
   router: lembretesRoutes,
   inicializarAgendamentosLembretes,
 } = require("./routes/lembretes");
+const {
+  router: lembretesMensaisRoutes,
+  inicializarLembretesMensais,
+} = require("./routes/lembretes-mensais");
 const estoqueRoutes = require("./routes/estoque");
 
 const app = express();
@@ -44,6 +48,7 @@ app.use(express.static(path.join(__dirname, "../frontend")));
 app.use("/auth", authRoutes);
 app.use("/api/entregas", entregasRoutes);
 app.use("/api/lembretes", lembretesRoutes);
+app.use("/api/lembretes-mensais", lembretesMensaisRoutes);
 app.use("/api/estoque", estoqueRoutes);
 
 // Rota de health check (útil para o Render)
@@ -371,6 +376,7 @@ async function startServer() {
     // Inicializa os agendamentos de notificação
     await inicializarAgendamentos();
     await inicializarAgendamentosLembretes();
+    await inicializarLembretesMensais();
 
     // Inicia o servidor
     app.listen(PORT, () => {

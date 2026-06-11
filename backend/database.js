@@ -86,6 +86,29 @@ async function initDatabase() {
     // Coluna já existe, ignora
   }
 
+  // Cria tabela de lembretes mensais (recorrentes)
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS lembretes_mensais (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        descricao TEXT NOT NULL,
+        dia_do_mes INTEGER NOT NULL,
+        horario TEXT NOT NULL,
+        antecedencia_minutos INTEGER DEFAULT 30,
+        ativo INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Adiciona coluna lembrete_mensal_id nos lembretes (migração)
+  try {
+    await db.execute(
+      `ALTER TABLE lembretes ADD COLUMN lembrete_mensal_id INTEGER DEFAULT NULL`,
+    );
+    console.log("Coluna 'lembrete_mensal_id' adicionada em lembretes");
+  } catch (e) {
+    // Coluna já existe, ignora
+  }
+
   // Cria tabela de tokens
   await db.execute(`
     CREATE TABLE IF NOT EXISTS tokens (
@@ -267,13 +290,14 @@ const lembretes = {
 
   criar: async (lembrete) => {
     const result = await db.execute({
-      sql: `INSERT INTO lembretes (data, horario, descricao, antecedencia_minutos)
-            VALUES (?, ?, ?, ?)`,
+      sql: `INSERT INTO lembretes (data, horario, descricao, antecedencia_minutos, lembrete_mensal_id)
+            VALUES (?, ?, ?, ?, ?)`,
       args: [
         lembrete.data,
         lembrete.horario,
         lembrete.descricao,
         lembrete.antecedencia_minutos || 30,
+        lembrete.lembrete_mensal_id || null,
       ],
     });
     return { id: Number(result.lastInsertRowid), ...lembrete };
@@ -319,6 +343,104 @@ const lembretes = {
   marcarNotificado: async (id) => {
     return await db.execute({
       sql: "UPDATE lembretes SET notificado = 1 WHERE id = ?",
+      args: [id],
+    });
+  },
+
+  buscarPorMensalId: async (mensalId) => {
+    const result = await db.execute({
+      sql: "SELECT * FROM lembretes WHERE lembrete_mensal_id = ? ORDER BY data DESC",
+      args: [mensalId],
+    });
+    return result.rows;
+  },
+
+  buscarPendentesPorMensalId: async (mensalId) => {
+    const result = await db.execute({
+      sql: "SELECT * FROM lembretes WHERE lembrete_mensal_id = ? AND status = 'agendado'",
+      args: [mensalId],
+    });
+    return result.rows;
+  },
+
+  removerPorMensalId: async (mensalId) => {
+    return await db.execute({
+      sql: "DELETE FROM lembretes WHERE lembrete_mensal_id = ? AND status = 'agendado'",
+      args: [mensalId],
+    });
+  },
+};
+
+// Funções auxiliares para lembretes mensais
+const lembretesMensais = {
+  listar: async () => {
+    const result = await db.execute(
+      "SELECT * FROM lembretes_mensais ORDER BY dia_do_mes ASC, horario ASC",
+    );
+    return result.rows;
+  },
+
+  listarAtivos: async () => {
+    const result = await db.execute(
+      "SELECT * FROM lembretes_mensais WHERE ativo = 1 ORDER BY dia_do_mes ASC, horario ASC",
+    );
+    return result.rows;
+  },
+
+  buscarPorId: async (id) => {
+    const result = await db.execute({
+      sql: "SELECT * FROM lembretes_mensais WHERE id = ?",
+      args: [id],
+    });
+    return result.rows[0];
+  },
+
+  criar: async (lembrete) => {
+    const result = await db.execute({
+      sql: `INSERT INTO lembretes_mensais (descricao, dia_do_mes, horario, antecedencia_minutos)
+            VALUES (?, ?, ?, ?)`,
+      args: [
+        lembrete.descricao,
+        lembrete.dia_do_mes,
+        lembrete.horario,
+        lembrete.antecedencia_minutos || 30,
+      ],
+    });
+    return { id: Number(result.lastInsertRowid), ...lembrete };
+  },
+
+  atualizar: async (id, dados) => {
+    return await db.execute({
+      sql: `UPDATE lembretes_mensais
+            SET descricao = ?, dia_do_mes = ?, horario = ?, antecedencia_minutos = ?
+            WHERE id = ?`,
+      args: [
+        dados.descricao,
+        dados.dia_do_mes,
+        dados.horario,
+        dados.antecedencia_minutos,
+        id,
+      ],
+    });
+  },
+
+  remover: async (id) => {
+    return await db.execute({
+      sql: "DELETE FROM lembretes_mensais WHERE id = ?",
+      args: [id],
+    });
+  },
+
+  pausar: async (id) => {
+    return await db.execute({
+      sql: "UPDATE lembretes_mensais SET ativo = 0 WHERE id = ?",
+      args: [id],
+    });
+  },
+
+  ativar: async (id) => {
+    return await db.execute({
+      sql: "UPDATE lembretes_mensais SET ativo = 1 WHERE id = ?",
       args: [id],
     });
   },
@@ -517,6 +639,7 @@ module.exports = {
   initDatabase,
   entregas,
   lembretes,
+  lembretesMensais,
   tokens,
   estoque,
   itensPedido,

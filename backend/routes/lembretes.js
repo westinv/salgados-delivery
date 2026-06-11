@@ -242,4 +242,4 @@ router.post("/:id/concluir", async (req, res) => {
   }
 });
 
-module.exports = { router, inicializarAgendamentosLembretes };
+module.exports = { router, inicializarAgendamentosLembretes, agendarNotificacaoLembrete };

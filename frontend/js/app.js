@@ -482,6 +482,199 @@ window.removerLembrete = async function (id) {
   }
 };
 
+// ==================== LEMBRETES MENSAIS ====================
+
+let lembretesMensaisList = [];
+let abaLembreteAtual = "avulsos";
+
+// Toggle entre abas Avulsos / Mensais
+window.trocarAbaLembrete = function (aba) {
+  abaLembreteAtual = aba;
+
+  // Atualiza visual dos botões
+  document.querySelectorAll(".aba-lembrete-btn").forEach((btn) => {
+    btn.classList.remove("bg-orange-500", "text-white");
+    btn.classList.add("bg-gray-100", "text-gray-600");
+    if (btn.dataset.aba === aba) {
+      btn.classList.remove("bg-gray-100", "text-gray-600");
+      btn.classList.add("bg-orange-500", "text-white");
+    }
+  });
+
+  // Mostra/esconde conteúdo
+  const conteudoAvulsos = document.getElementById("aba-conteudo-avulsos");
+  const conteudoMensais = document.getElementById("aba-conteudo-mensais");
+
+  if (aba === "avulsos") {
+    conteudoAvulsos.classList.remove("hidden");
+    conteudoMensais.classList.add("hidden");
+  } else {
+    conteudoAvulsos.classList.add("hidden");
+    conteudoMensais.classList.remove("hidden");
+    carregarLembretesMensais();
+  }
+};
+
+// Carrega lembretes mensais
+window.carregarLembretesMensais = async function () {
+  try {
+    const response = await fetch(`${API_BASE}/api/lembretes-mensais`);
+    lembretesMensaisList = await response.json();
+    renderLembretesMensais();
+  } catch (error) {
+    console.error("Erro ao carregar lembretes mensais:", error);
+  }
+};
+
+// Submit do form de lembrete mensal
+const formMensal = document.getElementById("form-lembrete-mensal");
+if (formMensal) {
+  formMensal.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const dados = {
+      descricao: document.getElementById("mensal-descricao").value.trim(),
+      dia_do_mes: parseInt(document.getElementById("mensal-dia").value),
+      horario: document.getElementById("mensal-horario").value,
+      antecedencia_minutos:
+        parseInt(document.getElementById("mensal-antecedencia").value) || 30,
+    };
+
+    if (!dados.descricao || !dados.dia_do_mes || !dados.horario) {
+      showToast("Preencha todos os campos", "error");
+      return;
+    }
+
+    if (dados.dia_do_mes < 1 || dados.dia_do_mes > 31) {
+      showToast("O dia deve estar entre 1 e 31", "error");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/lembretes-mensais`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dados),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        showToast("Lembrete mensal criado!", "success");
+        formMensal.reset();
+        await carregarLembretesMensais();
+      } else {
+        showToast(result.error, "error");
+      }
+    } catch (error) {
+      showToast("Erro de conexão", "error");
+    }
+  });
+}
+
+// Renderiza lista de lembretes mensais
+function renderLembretesMensais() {
+  const listaEl = document.getElementById("lista-lembretes-mensais");
+  const vazioEl = document.getElementById("mensais-vazio");
+
+  if (lembretesMensaisList.length === 0) {
+    listaEl.innerHTML = "";
+    vazioEl.classList.remove("hidden");
+    return;
+  }
+
+  vazioEl.classList.add("hidden");
+
+  listaEl.innerHTML = lembretesMensaisList
+    .map((mensal) => {
+      const ativo = mensal.ativo === 1 || mensal.ativo === true;
+      const statusBadge = ativo
+        ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Ativo</span>'
+        : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-500">Pausado</span>';
+
+      const opacidade = ativo ? "" : "opacity-50";
+
+      return `
+      <div class="bg-white rounded-xl shadow-md p-4 card-touch ${opacidade}" style="transition: opacity 0.3s">
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-16 text-center">
+            <div class="bg-purple-100 rounded-xl p-2">
+              <p class="text-2xl font-bold text-purple-600">${mensal.dia_do_mes}</p>
+              <p class="text-xs text-purple-400">todo mês</p>
+            </div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-gray-800 break-words">${escapeHtml(mensal.descricao)}</p>
+            <div class="flex items-center gap-2 mt-1">
+              <p class="text-xs text-gray-500">⏰ ${mensal.horario.substring(0, 5)}</p>
+              <p class="text-xs text-gray-400">• Aviso ${mensal.antecedencia_minutos} min antes</p>
+            </div>
+            <div class="mt-2">${statusBadge}</div>
+          </div>
+          <div class="flex-shrink-0 flex flex-col gap-1">
+            <button onclick="togglePausarMensal(${mensal.id})" class="p-2 ${ativo ? "text-yellow-500 hover:bg-yellow-50" : "text-green-500 hover:bg-green-50"} rounded-lg" title="${ativo ? "Pausar" : "Ativar"}">
+              ${
+                ativo
+                  ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+                  : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+              }
+            </button>
+            <button onclick="removerLembreteMensal(${mensal.id})" class="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Excluir">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+}
+
+// Pausar/Ativar lembrete mensal
+window.togglePausarMensal = async function (id) {
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/lembretes-mensais/${id}/pausar`,
+      {
+        method: "POST",
+      },
+    );
+
+    const result = await response.json();
+
+    if (response.ok) {
+      showToast(result.message, "success");
+      await carregarLembretesMensais();
+    } else {
+      showToast(result.error, "error");
+    }
+  } catch (error) {
+    showToast("Erro ao alterar lembrete", "error");
+  }
+};
+
+// Remover lembrete mensal
+window.removerLembreteMensal = async function (id) {
+  if (!confirm("Remover este lembrete mensal? Ele não se repetirá mais."))
+    return;
+
+  try {
+    const response = await fetch(`${API_BASE}/api/lembretes-mensais/${id}`, {
+      method: "DELETE",
+    });
+
+    if (response.ok) {
+      showToast("Lembrete mensal removido", "success");
+      await carregarLembretesMensais();
+    }
+  } catch (error) {
+    showToast("Erro ao remover lembrete mensal", "error");
+  }
+};
+
+
 // ==================== RELATÓRIOS ====================
 
 let periodoAtual = "hoje";
