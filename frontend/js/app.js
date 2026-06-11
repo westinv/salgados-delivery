@@ -1143,6 +1143,177 @@ window.removerProduto = async function (id) {
   }
 };
 
+// ==================== LOG DO ESTOQUE ====================
+
+let logEstoqueAberto = false;
+let logEstoqueItems = [];
+
+window.toggleLogEstoque = async function () {
+  logEstoqueAberto = !logEstoqueAberto;
+  const container = document.getElementById("log-estoque-container");
+  const chevron = document.getElementById("log-chevron");
+
+  if (logEstoqueAberto) {
+    container.classList.remove("hidden");
+    chevron.style.transform = "rotate(180deg)";
+    await carregarLogEstoque();
+  } else {
+    container.classList.add("hidden");
+    chevron.style.transform = "rotate(0deg)";
+  }
+};
+
+async function carregarLogEstoque() {
+  try {
+    const response = await fetch(`${API_BASE}/api/estoque/log?limite=50`);
+    logEstoqueItems = await response.json();
+    renderLogEstoque();
+  } catch (error) {
+    console.error("Erro ao carregar log de estoque:", error);
+  }
+}
+
+function renderLogEstoque() {
+  const listaEl = document.getElementById("lista-log-estoque");
+  const vazioEl = document.getElementById("log-estoque-vazio");
+
+  if (logEstoqueItems.length === 0) {
+    listaEl.innerHTML = "";
+    vazioEl.classList.remove("hidden");
+    return;
+  }
+
+  vazioEl.classList.add("hidden");
+
+  // Agrupa por data
+  const porData = {};
+  logEstoqueItems.forEach((log) => {
+    const data = log.created_at
+      ? log.created_at.split("T")[0].split(" ")[0]
+      : "Sem data";
+    if (!porData[data]) porData[data] = [];
+    porData[data].push(log);
+  });
+
+  const datasOrdenadas = Object.keys(porData).sort((a, b) =>
+    b.localeCompare(a),
+  );
+
+  listaEl.innerHTML = datasOrdenadas
+    .map((data) => {
+      const logs = porData[data];
+      const dataFormatada = formatarDataLog(data);
+
+      return `
+      <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-3">
+        <div class="bg-gray-50 px-4 py-2 border-b border-gray-100">
+          <p class="text-sm font-medium text-gray-600">${dataFormatada}</p>
+        </div>
+        <div class="divide-y divide-gray-50">
+          ${logs
+            .map((log) => {
+              const config = getLogConfig(log.tipo);
+              const hora = log.created_at
+                ? log.created_at.includes("T")
+                  ? log.created_at.split("T")[1].substring(0, 5)
+                  : log.created_at.split(" ")[1]
+                    ? log.created_at.split(" ")[1].substring(0, 5)
+                    : ""
+                : "";
+
+              return `
+              <div class="px-4 py-3 flex items-center gap-3">
+                <div class="flex-shrink-0 w-8 h-8 ${config.bgColor} rounded-full flex items-center justify-center">
+                  <span class="text-sm">${config.icon}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-800">${escapeHtml(log.nome_produto)}</p>
+                  <p class="text-xs ${config.textColor}">${config.label}: ${config.prefixo}${log.quantidade} un</p>
+                </div>
+                <div class="flex-shrink-0 text-right">
+                  ${
+                    log.quantidade_anterior !== null &&
+                    log.quantidade_depois !== null
+                      ? `<p class="text-xs text-gray-400">${log.quantidade_anterior} → ${log.quantidade_depois}</p>`
+                      : ""
+                  }
+                  ${hora ? `<p class="text-xs text-gray-300">${hora}</p>` : ""}
+                </div>
+              </div>
+            `;
+            })
+            .join("")}
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+}
+
+function getLogConfig(tipo) {
+  switch (tipo) {
+    case "entrada":
+      return {
+        icon: "📥",
+        label: "Entrada",
+        prefixo: "+",
+        bgColor: "bg-green-100",
+        textColor: "text-green-600",
+      };
+    case "saida":
+      return {
+        icon: "📤",
+        label: "Saída",
+        prefixo: "-",
+        bgColor: "bg-red-100",
+        textColor: "text-red-600",
+      };
+    case "criacao":
+      return {
+        icon: "✨",
+        label: "Produto criado",
+        prefixo: "+",
+        bgColor: "bg-blue-100",
+        textColor: "text-blue-600",
+      };
+    case "remocao":
+      return {
+        icon: "🗑️",
+        label: "Produto removido",
+        prefixo: "-",
+        bgColor: "bg-gray-100",
+        textColor: "text-gray-500",
+      };
+    default:
+      return {
+        icon: "📝",
+        label: "Movimento",
+        prefixo: "",
+        bgColor: "bg-gray-100",
+        textColor: "text-gray-600",
+      };
+  }
+}
+
+function formatarDataLog(dataStr) {
+  if (!dataStr || dataStr === "Sem data") return dataStr;
+  try {
+    const [ano, mes, dia] = dataStr.split("-");
+    const hoje = new Date();
+    const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+
+    if (dataStr === hojeStr) return "Hoje";
+
+    const ontem = new Date(hoje.getTime() - 86400000);
+    const ontemStr = `${ontem.getFullYear()}-${String(ontem.getMonth() + 1).padStart(2, "0")}-${String(ontem.getDate()).padStart(2, "0")}`;
+    if (dataStr === ontemStr) return "Ontem";
+
+    return `${dia}/${mes}/${ano}`;
+  } catch {
+    return dataStr;
+  }
+}
+
 // ==================== PRESETS DE SALGADOS ====================
 
 // Configuração dos presets com quantidades exatas por tipo

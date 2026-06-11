@@ -1,6 +1,6 @@
 // routes/estoque.js - CRUD de estoque de salgados
 const express = require("express");
-const { estoque } = require("../database");
+const { estoque, estoqueLog } = require("../database");
 
 const router = express.Router();
 
@@ -12,6 +12,18 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.error("Erro ao listar estoque:", error);
     res.status(500).json({ error: "Erro ao listar estoque" });
+  }
+});
+
+// GET /api/estoque/log - Lista histórico de movimentações
+router.get("/log", async (req, res) => {
+  try {
+    const limite = parseInt(req.query.limite) || 50;
+    const lista = await estoqueLog.listar(limite);
+    res.json(lista);
+  } catch (error) {
+    console.error("Erro ao listar log de estoque:", error);
+    res.status(500).json({ error: "Erro ao listar histórico" });
   }
 });
 
@@ -49,6 +61,18 @@ router.post("/", async (req, res) => {
       quantidade: parseInt(quantidade) || 0,
       preco_unitario: parseFloat(preco_unitario) || 0,
     });
+
+    // Registra no log
+    if (novoItem.quantidade > 0) {
+      await estoqueLog.registrar({
+        estoque_id: novoItem.id,
+        nome_produto: novoItem.nome,
+        tipo: "criacao",
+        quantidade: novoItem.quantidade,
+        quantidade_anterior: 0,
+        quantidade_depois: novoItem.quantidade,
+      });
+    }
 
     res.status(201).json({ success: true, item: novoItem });
   } catch (error) {
@@ -103,8 +127,19 @@ router.post("/:id/adicionar", async (req, res) => {
       return res.status(404).json({ error: "Item não encontrado" });
     }
 
+    const qtdAnterior = item.quantidade;
     await estoque.adicionarQuantidade(id, parseInt(quantidade));
     const itemAtualizado = await estoque.buscarPorId(id);
+
+    // Registra no log
+    await estoqueLog.registrar({
+      estoque_id: parseInt(id),
+      nome_produto: item.nome,
+      tipo: "entrada",
+      quantidade: parseInt(quantidade),
+      quantidade_anterior: qtdAnterior,
+      quantidade_depois: itemAtualizado.quantidade,
+    });
 
     res.json({
       success: true,
@@ -140,8 +175,19 @@ router.post("/:id/remover", async (req, res) => {
       });
     }
 
+    const qtdAnterior = item.quantidade;
     await estoque.removerQuantidade(id, parseInt(quantidade));
     const itemAtualizado = await estoque.buscarPorId(id);
+
+    // Registra no log
+    await estoqueLog.registrar({
+      estoque_id: parseInt(id),
+      nome_produto: item.nome,
+      tipo: "saida",
+      quantidade: parseInt(quantidade),
+      quantidade_anterior: qtdAnterior,
+      quantidade_depois: itemAtualizado.quantidade,
+    });
 
     res.json({
       success: true,
@@ -162,6 +208,18 @@ router.delete("/:id", async (req, res) => {
     const item = await estoque.buscarPorId(id);
     if (!item) {
       return res.status(404).json({ error: "Item não encontrado" });
+    }
+
+    // Registra no log antes de remover
+    if (item.quantidade > 0) {
+      await estoqueLog.registrar({
+        estoque_id: parseInt(id),
+        nome_produto: item.nome,
+        tipo: "remocao",
+        quantidade: item.quantidade,
+        quantidade_anterior: item.quantidade,
+        quantidade_depois: 0,
+      });
     }
 
     await estoque.remover(id);

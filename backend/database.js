@@ -143,6 +143,20 @@ async function initDatabase() {
     )
   `);
 
+  // Cria tabela de log do estoque
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS estoque_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        estoque_id INTEGER,
+        nome_produto TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        quantidade INTEGER NOT NULL,
+        quantidade_anterior INTEGER,
+        quantidade_depois INTEGER,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Cria tabela de usuários (login fixo, sem cadastro)
   await db.execute(`
     CREATE TABLE IF NOT EXISTS usuarios (
@@ -547,6 +561,41 @@ const estoque = {
   },
 };
 
+// Funções auxiliares para log do estoque
+const estoqueLog = {
+  listar: async (limite = 50) => {
+    const result = await db.execute({
+      sql: "SELECT * FROM estoque_log ORDER BY created_at DESC LIMIT ?",
+      args: [limite],
+    });
+    return result.rows;
+  },
+
+  listarPorProduto: async (estoqueId, limite = 20) => {
+    const result = await db.execute({
+      sql: "SELECT * FROM estoque_log WHERE estoque_id = ? ORDER BY created_at DESC LIMIT ?",
+      args: [estoqueId, limite],
+    });
+    return result.rows;
+  },
+
+  registrar: async (log) => {
+    const result = await db.execute({
+      sql: `INSERT INTO estoque_log (estoque_id, nome_produto, tipo, quantidade, quantidade_anterior, quantidade_depois)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [
+        log.estoque_id,
+        log.nome_produto,
+        log.tipo,
+        log.quantidade,
+        log.quantidade_anterior ?? null,
+        log.quantidade_depois ?? null,
+      ],
+    });
+    return { id: Number(result.lastInsertRowid), ...log };
+  },
+};
+
 // Funções auxiliares para itens do pedido
 const itensPedido = {
   listarPorEntrega: async (entregaId) => {
@@ -642,6 +691,7 @@ module.exports = {
   lembretesMensais,
   tokens,
   estoque,
+  estoqueLog,
   itensPedido,
   usuarios,
   sessoes,
