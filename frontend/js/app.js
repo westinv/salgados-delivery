@@ -1047,6 +1047,7 @@ function renderEstoque() {
           <div>
             <p class="font-semibold text-gray-800 text-lg">${item.nome}</p>
             <p class="text-sm text-gray-500">R$ ${(item.preco_unitario || 0).toFixed(2)} /un</p>
+            <p class="text-xs text-gray-400 mt-1">🕐 ${formatarDataHoraEstoque(item.updated_at)}</p>
           </div>
           <div class="text-right">
             <p class="text-3xl font-bold ${corQtd}">${item.quantidade}</p>
@@ -1068,6 +1069,30 @@ function renderEstoque() {
     .join("");
 }
 
+function formatarDataHoraEstoque(dataStr) {
+  if (!dataStr) return "Sem registro";
+  try {
+    // Trata tanto formato ISO (2026-06-11T15:30:00) quanto SQLite (2026-06-11 15:30:00)
+    const partes = dataStr.includes("T")
+      ? dataStr.split("T")
+      : dataStr.split(" ");
+    const dataParte = partes[0];
+    const horaParte = partes[1] ? partes[1].substring(0, 5) : "";
+
+    const [ano, mes, dia] = dataParte.split("-");
+    const hoje = new Date();
+    const hojeStr = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+
+    const ontem = new Date(hoje.getTime() - 86400000);
+    const ontemStr = `${ontem.getFullYear()}-${String(ontem.getMonth() + 1).padStart(2, "0")}-${String(ontem.getDate()).padStart(2, "0")}`;
+
+    if (dataParte === hojeStr) return `Hoje às ${horaParte}`;
+    if (dataParte === ontemStr) return `Ontem às ${horaParte}`;
+    return `${dia}/${mes} às ${horaParte}`;
+  } catch {
+    return dataStr;
+  }
+}
 async function handleEstoqueSubmit(e) {
   e.preventDefault();
 
