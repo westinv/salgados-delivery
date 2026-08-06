@@ -197,7 +197,7 @@ router.get("/por-data/:data", async (req, res) => {
 // POST /api/entregas - Cria nova entrega
 router.post("/", async (req, res) => {
   try {
-    const { data, horario, descricao, embalagem, antecedencia_minutos, itens } =
+    const { data, horario, descricao, cliente, embalagem, antecedencia_minutos, itens } =
       req.body;
 
     if (!data || !horario || !descricao) {
@@ -238,6 +238,7 @@ router.post("/", async (req, res) => {
       data,
       horario,
       descricao,
+      cliente: cliente || "",
       embalagem: embalagem || "",
       antecedencia_minutos: antecedencia_minutos || 30,
     });
@@ -296,12 +297,13 @@ router.delete("/:id", async (req, res) => {
       return res.status(404).json({ error: "Entrega não encontrada" });
     }
 
-    // Estorna itens para o estoque
-    const itens = await itensPedido.listarPorEntrega(id);
-    if (itens && Array.isArray(itens)) {
-      for (const item of itens) {
-        if (item.estoque_id && item.quantidade > 0) {
-          await estoque.adicionarQuantidade(item.estoque_id, item.quantidade);
+    if (entrega.status !== "concluida") {
+      const itens = await itensPedido.listarPorEntrega(id);
+      if (itens && Array.isArray(itens)) {
+        for (const item of itens) {
+          if (item.estoque_id && item.quantidade > 0) {
+            await estoque.adicionarQuantidade(item.estoque_id, item.quantidade);
+          }
         }
       }
     }
@@ -374,7 +376,7 @@ router.post("/:id/reverter", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, horario, descricao, embalagem, antecedencia_minutos, itens } =
+    const { data, horario, descricao, cliente, embalagem, antecedencia_minutos, itens } =
       req.body;
 
     const entregaExistente = await entregas.buscarPorId(id);
@@ -403,14 +405,16 @@ router.put("/:id", async (req, res) => {
       }
     }
 
-    // --- VALIDAÇÃO DE ESTOQUE (EDIÇÃO) ---
-    const itensAntigos = await itensPedido.listarPorEntrega(id);
+    const podeAjustarEstoque = entregaExistente.status !== "concluida";
+    const itensAntigos = podeAjustarEstoque
+      ? await itensPedido.listarPorEntrega(id)
+      : [];
     const qtdAntigaPorEstoque = {};
     for (const itemAntigo of itensAntigos) {
       qtdAntigaPorEstoque[itemAntigo.estoque_id] = itemAntigo.quantidade;
     }
 
-    if (itens && Array.isArray(itens) && itens.length > 0) {
+    if (podeAjustarEstoque && itens && Array.isArray(itens) && itens.length > 0) {
       for (const item of itens) {
         if (item.estoque_id && item.quantidade > 0) {
           const itemEstoque = await estoque.buscarPorId(item.estoque_id);
@@ -434,6 +438,7 @@ router.put("/:id", async (req, res) => {
       data,
       horario,
       descricao,
+      cliente: cliente !== undefined ? cliente : entregaExistente.cliente || "",
       embalagem: embalagem || entregaExistente.embalagem || "",
       antecedencia_minutos: antecedencia_minutos || 30,
       alexa_reminder_id: entregaExistente.alexa_reminder_id,
@@ -441,7 +446,7 @@ router.put("/:id", async (req, res) => {
     });
 
     // Atualiza itens do pedido se foram enviados E faz o ajuste no estoque
-    if (itens && Array.isArray(itens)) {
+    if (podeAjustarEstoque && itens && Array.isArray(itens)) {
       // Devolve ao estoque as quantidades dos itens antigos
       for (const itemAntigo of itensAntigos) {
         await estoque.adicionarQuantidade(itemAntigo.estoque_id, itemAntigo.quantidade);

@@ -2,7 +2,7 @@ process.env.NODE_ENV = 'test';
 
 const request = require('supertest');
 const express = require('express');
-const { initDatabase, db, estoque, entregas, itensPedido } = require('../database');
+const { initDatabase, db, estoque, entregas, itensPedido, backfillClienteFromDescricao } = require('../database');
 const { router: entregasRoutes } = require('../routes/entregas');
 
 const app = express();
@@ -188,6 +188,134 @@ describe('Entregas API - Lógica de Estoque', () => {
     // Valida se o estoque voltou a ser 50
     coxinha = await estoque.buscarPorId(coxinhaId);
     expect(coxinha.quantidade).toBe(50);
+  });
+
+  test('NÃO deve repor o estoque ao excluir uma entrega já concluída (entregue de verdade)', async () => {
+    const novaEntrega = {
+      data: '2050-01-01',
+      horario: '18:30',
+      descricao: 'Festa Marta',
+      antecedencia_minutos: 30,
+      itens: [
+        { estoque_id: coxinhaId, quantidade: 20 }
+      ]
+    };
+
+    const resPost = await request(app).post('/api/entregas').send(novaEntrega);
+    const entregaId = resPost.body.entrega.id;
+
+    let coxinha = await estoque.buscarPorId(coxinhaId);
+    expect(coxinha.quantidade).toBe(30);
+
+    await request(app).post(`/api/entregas/${entregaId}/concluir`);
+
+    const resDelete = await request(app).delete(`/api/entregas/${entregaId}`);
+    expect(resDelete.statusCode).toBe(200);
+
+    coxinha = await estoque.buscarPorId(coxinhaId);
+    expect(coxinha.quantidade).toBe(30);
+  });
+
+  test('NÃO deve ajustar o estoque ao editar itens de uma entrega já concluída', async () => {
+    const novaEntrega = {
+      data: '2050-01-01',
+      horario: '20:00',
+      descricao: 'Festa Renata',
+      antecedencia_minutos: 30,
+      itens: [
+        { estoque_id: coxinhaId, quantidade: 20 }
+      ]
+    };
+
+    const resPost = await request(app).post('/api/entregas').send(novaEntrega);
+    const entregaId = resPost.body.entrega.id;
+
+    let coxinha = await estoque.buscarPorId(coxinhaId);
+    expect(coxinha.quantidade).toBe(30);
+
+    await request(app).post(`/api/entregas/${entregaId}/concluir`);
+
+    const entregaEditada = {
+      data: '2050-01-01',
+      horario: '20:00',
+      descricao: 'Festa Renata (corrigido)',
+      itens: [
+        { estoque_id: coxinhaId, quantidade: 40 }
+      ]
+    };
+    const resPut = await request(app).put(`/api/entregas/${entregaId}`).send(entregaEditada);
+    expect(resPut.statusCode).toBe(200);
+
+    coxinha = await estoque.buscarPorId(coxinhaId);
+    expect(coxinha.quantidade).toBe(30);
+  });
+
+  test('Deve salvar e atualizar o campo cliente (round-trip)', async () => {
+    const novaEntrega = {
+      data: '2050-01-01',
+      horario: '19:00',
+      descricao: '10x Coxinha - Julia Melo',
+      cliente: 'Julia Melo',
+      antecedencia_minutos: 30,
+      itens: [{ estoque_id: coxinhaId, quantidade: 10 }],
+    };
+
+    const resPost = await request(app).post('/api/entregas').send(novaEntrega);
+    expect(resPost.statusCode).toBe(201);
+    const entregaId = resPost.body.entrega.id;
+
+    const resGet = await request(app).get(`/api/entregas/${entregaId}`);
+    expect(resGet.body.cliente).toBe('Julia Melo');
+
+    const entregaEditada = {
+      data: '2050-01-01',
+      horario: '19:00',
+      descricao: '10x Coxinha - Julia Melo Silva',
+      cliente: 'Julia Melo Silva',
+      itens: [{ estoque_id: coxinhaId, quantidade: 10 }],
+    };
+    const resPut = await request(app).put(`/api/entregas/${entregaId}`).send(entregaEditada);
+    expect(resPut.statusCode).toBe(200);
+    expect(resPut.body.entrega.cliente).toBe('Julia Melo Silva');
+  });
+
+  test('Deve recuperar o cliente de entregas antigas (sem a coluna preenchida) via backfill', async () => {
+    await db.execute({
+      sql: `INSERT INTO entregas (data, horario, descricao, antecedencia_minutos, cliente)
+            VALUES (?, ?, ?, ?, '')`,
+      args: ['2050-01-01', '21:00', '25x Coxinha, 30x Kibe - Roberto', 30],
+    });
+
+    await backfillClienteFromDescricao();
+
+    const result = await db.execute({
+      sql: "SELECT cliente FROM entregas WHERE descricao = ?",
+      args: ['25x Coxinha, 30x Kibe - Roberto'],
+    });
+    expect(result.rows[0].cliente).toBe('Roberto');
+  });
+
+  test('Backfill não sobrescreve entregas que já têm cliente preenchido', async () => {
+    const novaEntrega = {
+      data: '2050-01-01',
+      horario: '22:00',
+      descricao: '5x Coxinha - Ana',
+      cliente: 'Ana',
+      antecedencia_minutos: 30,
+      itens: [{ estoque_id: coxinhaId, quantidade: 5 }],
+    };
+    const resPost = await request(app).post('/api/entregas').send(novaEntrega);
+    const entregaId = resPost.body.entrega.id;
+
+    await db.execute({
+      sql: "UPDATE entregas SET descricao = ? WHERE id = ?",
+      args: ['5x Coxinha - Nome Trocado', entregaId],
+    });
+
+    await backfillClienteFromDescricao();
+
+    const resGet = await request(app).get(`/api/entregas/${entregaId}`);
+    expect(resGet.body.cliente).toBe('Ana');
   });
 
 });

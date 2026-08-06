@@ -1,10 +1,11 @@
 // sw.js - Service Worker para PWA
-const CACHE_NAME = 'salgados-v1';
+const CACHE_NAME = 'salgados-v2';
+// Vite emits hashed asset filenames per build, so we only precache the
+// shell here; the network-first fetch handler below populates the rest.
 const urlsToCache = [
     '/',
     '/index.html',
-    '/manifest.json',
-    '/js/app.js'
+    '/manifest.json'
 ];
 
 // Instalação - cacheia arquivos estáticos

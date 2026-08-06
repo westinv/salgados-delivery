@@ -26,6 +26,36 @@ if (process.env.TURSO_DATABASE_URL) {
   console.log("Usando SQLite local");
 }
 
+function extrairNomeClienteDeDescricao(descricao) {
+  let nome = descricao;
+  const partes = nome.split(" - ");
+  if (partes.length > 1 && partes[0].includes("x ")) {
+    nome = partes.slice(1).join(" - ");
+  }
+  nome = nome.replace(/\s*\[.*?\]\s*/g, "").trim();
+  return nome;
+}
+
+async function backfillClienteFromDescricao() {
+  const result = await db.execute(
+    "SELECT id, descricao FROM entregas WHERE cliente IS NULL OR cliente = ''",
+  );
+  for (const row of result.rows) {
+    const nome = extrairNomeClienteDeDescricao(row.descricao);
+    if (nome) {
+      await db.execute({
+        sql: "UPDATE entregas SET cliente = ? WHERE id = ?",
+        args: [nome, row.id],
+      });
+    }
+  }
+  if (result.rows.length > 0) {
+    console.log(
+      `Backfill de cliente aplicado em ${result.rows.length} entrega(s) antiga(s)`,
+    );
+  }
+}
+
 // Inicializa as tabelas
 async function initDatabase() {
   // Cria tabela de entregas
@@ -61,6 +91,13 @@ async function initDatabase() {
   } catch (e) {
     // Coluna já existe, ignora
   }
+
+  try {
+    await db.execute(`ALTER TABLE entregas ADD COLUMN cliente TEXT DEFAULT ''`);
+    console.log("Coluna 'cliente' adicionada em entregas");
+  } catch (e) {}
+
+  await backfillClienteFromDescricao();
 
   // Cria tabela de lembretes
   await db.execute(`
@@ -209,12 +246,13 @@ const entregas = {
 
   criar: async (entrega) => {
     const result = await db.execute({
-      sql: `INSERT INTO entregas (data, horario, descricao, embalagem, antecedencia_minutos, alexa_reminder_id)
-            VALUES (?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO entregas (data, horario, descricao, cliente, embalagem, antecedencia_minutos, alexa_reminder_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [
         entrega.data,
         entrega.horario,
         entrega.descricao,
+        entrega.cliente || "",
         entrega.embalagem || "",
         entrega.antecedencia_minutos || 30,
         entrega.alexa_reminder_id || null,
@@ -226,13 +264,14 @@ const entregas = {
   atualizar: async (id, dados) => {
     return await db.execute({
       sql: `UPDATE entregas
-            SET data = ?, horario = ?, descricao = ?, embalagem = ?, antecedencia_minutos = ?,
+            SET data = ?, horario = ?, descricao = ?, cliente = ?, embalagem = ?, antecedencia_minutos = ?,
                 alexa_reminder_id = ?, status = ?
             WHERE id = ?`,
       args: [
         dados.data,
         dados.horario,
         dados.descricao,
+        dados.cliente || "",
         dados.embalagem || "",
         dados.antecedencia_minutos,
         dados.alexa_reminder_id,
@@ -695,4 +734,6 @@ module.exports = {
   itensPedido,
   usuarios,
   sessoes,
+  backfillClienteFromDescricao,
+  extrairNomeClienteDeDescricao,
 };

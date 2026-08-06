@@ -1,0 +1,82 @@
+@import "./tokens.css";
+
+/* iOS-safety rules, ported verbatim in spirit from frontend/index.html:29-128 */
+* {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100dvh;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+
+input,
+textarea,
+select {
+  -webkit-user-select: auto;
+  user-select: auto;
+  font-size: 16px; /* previne zoom automático no iOS */
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: inherit;
+}
+
+input[type="date"],
+input[type="time"] {
+  width: 100%;
+  min-width: 100%;
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@keyframes pulse-attention {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-attention {
+  animation: pulse-attention 1.5s ease-in-out infinite;
+}
+
+/* Pressed-state feedback for primary CTAs, per design spec interaction rules */
+.press-feedback {
+  transition:
+    transform 0.08s,
+    filter 0.08s;
+}
+
+.press-feedback:active {
+  transform: scale(0.97);
+  filter: brightness(0.94);
+}
+
+/* Bottom sheets / modals: inertial scroll + prevent background scroll chaining */
+.sheet-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}

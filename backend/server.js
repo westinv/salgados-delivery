@@ -41,8 +41,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve arquivos estáticos do frontend
-app.use(express.static(path.join(__dirname, "../frontend")));
+app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
 // Rotas da API
 app.use("/auth", authRoutes);
@@ -355,7 +354,7 @@ app.get("/api/debug-token", async (req, res) => {
 
 // Fallback para SPA - retorna index.html para rotas não encontradas
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../frontend/index.html"));
+  res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
 });
 
 // Tratamento de erros global

@@ -63,7 +63,24 @@ npm install
 npm start
 ```
 
-Acesse: http://localhost:3000
+Em outro terminal, para o front-end em modo desenvolvimento (com hot-reload,
+proxied para a API acima):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Para gerar o build de produção do front-end (o `backend/server.js` serve
+`frontend/dist` automaticamente):
+
+```bash
+cd frontend
+npm run build
+```
+
+Acesse: http://localhost:3000 (produção) ou a URL do Vite (desenvolvimento)
 
 ## Deploy no Render.com
 
@@ -90,18 +107,25 @@ Acesse: http://localhost:3000
 ```
 salgados-delivery/
 ├── backend/
-│   ├── server.js          # Servidor Express
-│   ├── database.js        # SQLite
+│   ├── server.js          # Servidor Express (serve frontend/dist em produção)
+│   ├── database.js        # SQLite/Turso
 │   ├── routes/
-│   │   ├── auth.js        # Autenticação Amazon
-│   │   └── entregas.js    # CRUD + Alexa
-│   └── .env               # Variáveis de ambiente
-├── frontend/
-│   ├── index.html         # App principal
-│   ├── manifest.json      # PWA config
-│   ├── sw.js              # Service Worker
-│   └── js/app.js          # Lógica do app
-└── render.yaml            # Config deploy
+│   │   ├── auth.js        # Configuração do Voice Monkey (Alexa)
+│   │   ├── entregas.js    # CRUD de entregas + agendamento de avisos
+│   │   ├── estoque.js     # CRUD de estoque + log de movimentações
+│   │   ├── lembretes.js   # Lembretes avulsos
+│   │   └── lembretes-mensais.js  # Lembretes recorrentes mensais
+│   └── .env                # Variáveis de ambiente
+├── frontend/                # App React (Vite + TypeScript + Tailwind)
+│   ├── src/
+│   │   ├── screens/         # Início, Estoque, Agenda, Histórico, Lembretes, Relatórios, Configurações
+│   │   ├── wizard/           # Fluxo "Novo pedido" (2 passos)
+│   │   ├── components/       # Primitivos compartilhados (Chip, Stepper, BottomSheet, ...)
+│   │   ├── api/client.ts     # Cliente HTTP para a API do backend
+│   │   └── context/          # Auth/Data contexts (React Context)
+│   ├── public/manifest.json  # PWA config
+│   └── public/sw.js          # Service Worker
+└── render.yaml              # Config deploy
 ```
 
 ## API Endpoints
