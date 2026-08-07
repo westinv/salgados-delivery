@@ -15,10 +15,10 @@ export interface RemDraft {
 
 const TIME_CHIPS_ONCE = ["08:00", "12:00", "15:00", "18:00"];
 const NOTICE_CHIPS = [
+  { v: "5", label: "5 min" },
   { v: "15", label: "15 min" },
   { v: "30", label: "30 min" },
   { v: "60", label: "1 hora" },
-  { v: "1440", label: "1 dia" },
 ];
 
 export function makeDefaultDraft(kind: "once" | "monthly", defaultNotice: string): RemDraft {

@@ -13,10 +13,10 @@ import type { DayOffset } from "../wizard/useOrderDraft";
 
 const TIME_CHIPS = ["12:00", "15:00", "17:00", "19:00"];
 const REMINDER_CHIPS = [
+  { v: "5", label: "5 min" },
   { v: "15", label: "15 min" },
   { v: "30", label: "30 min" },
   { v: "60", label: "1 hora" },
-  { v: "1440", label: "1 dia" },
 ];
 const PACKAGING_OPTIONS: { key: EmbalagemState["tipo"]; label: string }[] = [
   { key: "nenhuma", label: "Nenhuma" },

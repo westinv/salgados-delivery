@@ -17,6 +17,7 @@ import { useLocalStorageNumber } from "../hooks/useLocalStorageNumber";
 type ReminderTab = "avulsos" | "mensais";
 
 const NOTICE_LABEL: Record<string, string> = {
+  "5": "5 min antes",
   "15": "15 min antes",
   "30": "30 min antes",
   "60": "1 hora antes",

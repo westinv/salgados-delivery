@@ -6,6 +6,7 @@ import { formatOverdue } from "../utils/overdue";
 import { StatusPill } from "./StatusPill";
 
 const REMINDER_LABEL: Record<string, string> = {
+  "5": "5 min antes",
   "15": "15 min antes",
   "30": "30 min antes",
   "60": "1 hora antes",

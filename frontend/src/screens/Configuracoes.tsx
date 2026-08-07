@@ -8,10 +8,10 @@ import * as api from "../api/client";
 import { ApiError } from "../api/client";
 
 const NOTICE_CHIPS = [
+  { v: 5, label: "5 min" },
   { v: 15, label: "15 min" },
   { v: 30, label: "30 min" },
   { v: 60, label: "1 hora" },
-  { v: 1440, label: "1 dia" },
 ];
 
 export function Configuracoes() {
