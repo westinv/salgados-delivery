@@ -40,7 +40,7 @@ async function enviarAnuncio(texto, repetir = 3) {
           const tokenData = await tokens.obter();
           if (!tokenData || !tokenData.access_token) {
             console.warn("Voice Monkey não configurado, anúncio ignorado.");
-            resolve({ sent: 0, total: 0 });
+            resolve({ sent: 0, total: 0, error: "Voice Monkey não configurado." });
             return;
           }
 
@@ -50,7 +50,11 @@ async function enviarAnuncio(texto, repetir = 3) {
 
           if (!token || !devicesPart) {
             console.error("Configuração inválida. Use o formato: TOKEN:DEVICE_ID");
-            resolve({ sent: 0, total: 0 });
+            resolve({
+              sent: 0,
+              total: 0,
+              error: "Configuração inválida. Use o formato Token:Aparelho.",
+            });
             return;
           }
 
@@ -72,8 +76,16 @@ async function enviarAnuncio(texto, repetir = 3) {
           const erros = resultados.filter((r) => r.status === "rejected");
           if (erros.length === devices.length) {
             const err = erros[0].reason;
-            console.error("Erro ao enviar anúncio via Voice Monkey:", err.response?.data || err.message);
-            resolve({ sent: 0, total: devices.length });
+            const detalhe = err.response?.data?.message || err.response?.data || err.message;
+            console.error("Erro ao enviar anúncio via Voice Monkey:", detalhe);
+            resolve({
+              sent: 0,
+              total: devices.length,
+              error:
+                typeof detalhe === "string"
+                  ? detalhe
+                  : "Voice Monkey recusou o anúncio. Verifique o token e o(s) aparelho(s).",
+            });
           } else {
             console.log(`Anúncio enviado com sucesso para ${resultados.length - erros.length}/${devices.length} dispositivo(s)`);
             resolve({ sent: devices.length - erros.length, total: devices.length });

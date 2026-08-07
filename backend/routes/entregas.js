@@ -495,11 +495,22 @@ router.put("/:id", async (req, res) => {
 // POST /api/entregas/testar-notificacao - Envia notificação de teste
 router.post("/testar-notificacao", async (req, res) => {
   try {
-    await enviarAnuncio(
+    const resultado = await enviarAnuncio(
       "Teste do sistema Simone Salgados! Se você ouviu isso, a integração está funcionando perfeitamente.",
       1, // Teste só fala 1 vez
     );
-    res.json({ success: true, message: "Anúncio de teste enviado!" });
+    if (!resultado.sent) {
+      return res.status(400).json({
+        success: false,
+        error:
+          resultado.error ||
+          "Nenhum aparelho recebeu o anúncio. Verifique o token e o(s) aparelho(s).",
+      });
+    }
+    res.json({
+      success: true,
+      message: `Anúncio de teste enviado para ${resultado.sent}/${resultado.total} aparelho(s)!`,
+    });
   } catch (error) {
     res.status(400).json({
       success: false,
