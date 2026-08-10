@@ -36,6 +36,7 @@ export function Lembretes() {
   const [deleteAvulso, setDeleteAvulso] = useState<Lembrete | null>(null);
   const [deleteMensal, setDeleteMensal] = useState<LembreteMensal | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [defaultNotice] = useLocalStorageNumber("defaultReminderNotice", 30);
 
   const avulsos = [...lembretes]
@@ -45,7 +46,8 @@ export function Lembretes() {
   const mensais = [...lembretesMensais].sort((a, b) => a.dia_do_mes - b.dia_do_mes);
 
   async function handleSave() {
-    if (!draft) return;
+    if (!draft || saving) return;
+    setSaving(true);
     try {
       if (draft.kind === "once") {
         await api.criarLembrete({
@@ -69,6 +71,8 @@ export function Lembretes() {
       setDraft(null);
     } catch (err) {
       setFlash(err instanceof ApiError ? err.message : "Erro ao salvar lembrete");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -239,6 +243,7 @@ export function Lembretes() {
           onChange={setDraft}
           onCancel={() => setDraft(null)}
           onSave={handleSave}
+          saving={saving}
         />
       )}
 

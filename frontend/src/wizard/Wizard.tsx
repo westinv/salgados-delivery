@@ -23,6 +23,7 @@ export function Wizard({
   const [defaultReminder] = useLocalStorageNumber("defaultReminderNotice", 30);
   const [step, setStep] = useState<1 | 2>(1);
   const [flash, setFlash] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const {
     draft,
     patch,
@@ -59,7 +60,7 @@ export function Wizard({
       setStep(2);
       return;
     }
-    if (!isStep2Valid) return;
+    if (!isStep2Valid || saving) return;
 
     const items = estoqueItems
       .filter((item) => (draft.qtys[item.id] || 0) > 0)
@@ -68,6 +69,7 @@ export function Wizard({
     const descricao = buildDescricao(items, draft.clientName.trim());
     const embalagem = encodeEmbalagem(draft.packaging);
 
+    setSaving(true);
     try {
       await api.criarEntrega({
         data,
@@ -91,6 +93,7 @@ export function Wizard({
       );
     } catch (err) {
       setFlash(err instanceof ApiError ? err.message : "Erro ao agendar pedido");
+      setSaving(false);
     }
   }
 
@@ -139,8 +142,8 @@ export function Wizard({
       <WizardFooter
         summaryLeft={draft.clientName.trim() || "Sem cliente"}
         summaryRight={total > 0 ? `${total} salgados` : "—"}
-        label={step === 1 ? "Continuar" : "Confirmar agendamento"}
-        disabled={step === 1 ? !isStep1Valid : !isStep2Valid}
+        label={step === 1 ? "Continuar" : saving ? "Agendando..." : "Confirmar agendamento"}
+        disabled={step === 1 ? !isStep1Valid : !isStep2Valid || saving}
         onClick={handleNext}
       />
 

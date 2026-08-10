@@ -55,6 +55,7 @@ export function EditEntregaSheet({
   const { estoqueItems, reloadEntregas, reloadEstoque } = useData();
   const [form, setForm] = useState<EditForm | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.buscarEntrega(entregaId).then((entrega) => {
@@ -96,7 +97,8 @@ export function EditEntregaSheet({
     total > 0;
 
   async function handleSave() {
-    if (!form || !valid) return;
+    if (!form || !valid || saving) return;
+    setSaving(true);
     const items = estoqueItems
       .filter((item) => (form.qtys[item.id] || 0) > 0)
       .map((item) => ({ nome: item.nome, quantidade: form.qtys[item.id] }));
@@ -116,6 +118,7 @@ export function EditEntregaSheet({
       onSaved();
     } catch (err) {
       setFlash(err instanceof ApiError ? err.message : "Erro ao salvar entrega");
+      setSaving(false);
     }
   }
 
@@ -136,12 +139,12 @@ export function EditEntregaSheet({
             <button
               type="button"
               onClick={handleSave}
-              disabled={!valid}
+              disabled={!valid || saving}
               className={`flex-1 text-center py-4 rounded-input text-base font-extrabold text-white ${
-                valid ? "bg-primary" : "bg-disabled"
+                valid && !saving ? "bg-primary" : "bg-disabled"
               }`}
             >
-              Salvar
+              {saving ? "Salvando..." : "Salvar"}
             </button>
           </>
         }

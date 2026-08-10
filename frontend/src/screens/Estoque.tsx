@@ -46,6 +46,8 @@ export function Estoque() {
   const [log, setLog] = useState<EstoqueLogEntry[]>([]);
   const [novoItem, setNovoItem] = useState<NewItemDraft | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [movingStock, setMovingStock] = useState(false);
+  const [creatingItem, setCreatingItem] = useState(false);
 
   useEffect(() => {
     api.estoqueLog().then(setLog).catch(() => {});
@@ -55,7 +57,8 @@ export function Estoque() {
   const maxQty = Math.max(1, ...estoqueItems.map((i) => i.quantidade));
 
   async function applyMove() {
-    if (!move || !move.amount) return;
+    if (!move || !move.amount || movingStock) return;
+    setMovingStock(true);
     try {
       if (move.mode === "add") {
         await api.adicionarEstoque(move.item.id, move.amount);
@@ -67,11 +70,14 @@ export function Estoque() {
       api.estoqueLog().then(setLog).catch(() => {});
     } catch {
       alert("Erro ao atualizar estoque");
+    } finally {
+      setMovingStock(false);
     }
   }
 
   async function handleCriarItem() {
-    if (!novoItem || !novoItem.nome.trim()) return;
+    if (!novoItem || !novoItem.nome.trim() || creatingItem) return;
+    setCreatingItem(true);
     try {
       await api.criarItemEstoque({
         nome: novoItem.nome.trim(),
@@ -83,6 +89,8 @@ export function Estoque() {
       api.estoqueLog().then(setLog).catch(() => {});
     } catch (err) {
       setFlash(err instanceof ApiError ? err.message : "Erro ao cadastrar item");
+    } finally {
+      setCreatingItem(false);
     }
   }
 
@@ -180,16 +188,20 @@ export function Estoque() {
                 <button
                   type="button"
                   onClick={applyMove}
-                  disabled={!move.amount}
+                  disabled={!move.amount || movingStock}
                   className={`flex-1 text-center py-4 rounded-input text-base font-extrabold text-white ${
-                    move.amount
+                    move.amount && !movingStock
                       ? move.mode === "add"
                         ? "bg-primary"
                         : "bg-danger"
                       : "bg-disabled"
                   }`}
                 >
-                  {move.mode === "add" ? "Adicionar ao estoque" : "Retirar do estoque"}
+                  {movingStock
+                    ? "Salvando..."
+                    : move.mode === "add"
+                      ? "Adicionar ao estoque"
+                      : "Retirar do estoque"}
                 </button>
               </>
             }
@@ -252,12 +264,12 @@ export function Estoque() {
               <button
                 type="button"
                 onClick={handleCriarItem}
-                disabled={!novoItem.nome.trim()}
+                disabled={!novoItem.nome.trim() || creatingItem}
                 className={`flex-1 text-center py-4 rounded-input text-base font-extrabold text-white ${
-                  novoItem.nome.trim() ? "bg-primary" : "bg-disabled"
+                  novoItem.nome.trim() && !creatingItem ? "bg-primary" : "bg-disabled"
                 }`}
               >
-                Cadastrar
+                {creatingItem ? "Cadastrando..." : "Cadastrar"}
               </button>
             </>
           }

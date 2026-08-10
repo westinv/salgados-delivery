@@ -37,11 +37,13 @@ export function NovoLembreteSheet({
   onChange,
   onCancel,
   onSave,
+  saving = false,
 }: {
   draft: RemDraft;
   onChange: (next: RemDraft) => void;
   onCancel: () => void;
   onSave: () => void;
+  saving?: boolean;
 }) {
   const [minDate] = useState(todayLocal());
   const valid =
@@ -63,12 +65,12 @@ export function NovoLembreteSheet({
           <button
             type="button"
             onClick={onSave}
-            disabled={!valid}
+            disabled={!valid || saving}
             className={`flex-[2] text-center py-4 rounded-input text-base font-extrabold text-white ${
-              valid ? "bg-primary" : "bg-disabled"
+              valid && !saving ? "bg-primary" : "bg-disabled"
             }`}
           >
-            Salvar lembrete
+            {saving ? "Salvando..." : "Salvar lembrete"}
           </button>
         </>
       }
